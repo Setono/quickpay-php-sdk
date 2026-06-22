@@ -109,6 +109,19 @@ final class PaymentsEndpointTest extends QuickpayTestCase
     }
 
     #[Test]
+    public function it_sends_the_extras_hash_with_its_keys_verbatim(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234/capture', self::fixture('payment.json'));
+
+        $this->client($http)->payments()->capture(1234, new CaptureRequest(1000, ['vat_amount' => 200]));
+
+        /** @var array<string, mixed> $body */
+        $body = json_decode((string) $http->sentRequests[0]->getBody(), true, flags: \JSON_THROW_ON_ERROR);
+        // `extras` and the keys inside it are passed through as-is (not converted to snake_case).
+        self::assertSame(['amount' => 1000, 'extras' => ['vat_amount' => 200]], $body);
+    }
+
+    #[Test]
     public function it_cancels_without_a_body(): void
     {
         $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234/cancel', self::fixture('payment.json'));

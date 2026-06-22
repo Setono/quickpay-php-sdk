@@ -84,6 +84,13 @@ $client->payments()->refund($payment->id, new RefundRequest(250));
 $client->payments()->cancel($payment->id);
 ```
 
+Quickpay processes these operations asynchronously by default — the returned payment may still have a
+pending operation. Pass `synchronized: true` to wait for and receive the completed transaction:
+
+```php
+$payment = $client->payments()->capture($payment->id, new CaptureRequest(1000), synchronized: true);
+```
+
 ### Reading and listing payments
 
 ```php

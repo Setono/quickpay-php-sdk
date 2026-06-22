@@ -19,4 +19,5 @@ enum PaymentState: string
     case New = 'new';
     case Rejected = 'rejected';
     case Processed = 'processed';
+    case Invalid = 'invalid';
 }

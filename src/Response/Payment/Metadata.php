@@ -19,7 +19,7 @@ final class Metadata
         public readonly ?int $expMonth = null,
         public readonly ?int $expYear = null,
         public readonly ?string $country = null,
-        public readonly ?bool $is3dSecure = null,
+        public readonly ?string $is3dSecure = null,
         public readonly ?bool $fraudSuspected = null,
     ) {
     }

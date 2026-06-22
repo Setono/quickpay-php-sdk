@@ -67,7 +67,7 @@ abstract class ResourceEndpoint extends Endpoint
     {
         return $this->mapItem(
             static::getItemClass(),
-            $this->client->put(sprintf('%s/%s', static::getPath(), $id), $request),
+            $this->client->patch(sprintf('%s/%s', static::getPath(), $id), $request),
         );
     }
 
@@ -75,14 +75,20 @@ abstract class ResourceEndpoint extends Endpoint
      * POST to `"{getPath()}/{$id}/{$action}"` (e.g. authorize, capture, refund, cancel) and map the
      * returned resource. The `$request` body is optional — operations such as cancel take no body.
      *
+     * Quickpay processes operations asynchronously by default and returns a `202 Accepted` with the
+     * operation still pending. Pass `$synchronized = true` to add the `?synchronized` flag, which
+     * makes Quickpay wait and return the completed transaction (its final state) instead.
+     *
      * @return T
      */
-    protected function operation(int|string $id, string $action, ?Payload $request = null): Resource
+    protected function operation(int|string $id, string $action, ?Payload $request = null, bool $synchronized = false): Resource
     {
-        return $this->mapItem(
-            static::getItemClass(),
-            $this->client->post(sprintf('%s/%s/%s', static::getPath(), $id, $action), $request),
-        );
+        $path = sprintf('%s/%s/%s', static::getPath(), $id, $action);
+        if ($synchronized) {
+            $path .= '?synchronized';
+        }
+
+        return $this->mapItem(static::getItemClass(), $this->client->post($path, $request));
     }
 
     /**

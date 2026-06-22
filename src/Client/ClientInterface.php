@@ -65,6 +65,17 @@ interface ClientInterface
     public function put(string $uri, ?Payload $body = null): array;
 
     /**
+     * PATCH to `$uri` and return the decoded JSON body. Used for updating a payment. The `$body` is
+     * normalized exactly as in {@see self::post()}.
+     *
+     * @return array<array-key, mixed>
+     *
+     * @throws ClientExceptionInterface if an error happens while processing the request
+     * @throws QuickpayException if the response is non-2xx, or the body is not valid JSON
+     */
+    public function patch(string $uri, ?Payload $body = null): array;
+
+    /**
      * Health check — `GET /ping`. Returns `true` on a 2xx response (a non-2xx response throws).
      *
      * @throws ClientExceptionInterface if an error happens while processing the request

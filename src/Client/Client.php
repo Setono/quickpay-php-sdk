@@ -119,6 +119,11 @@ final class Client implements ClientInterface
         return $this->send('PUT', $uri, $body);
     }
 
+    public function patch(string $uri, ?Payload $body = null): array
+    {
+        return $this->send('PATCH', $uri, $body);
+    }
+
     public function ping(): bool
     {
         $this->get('ping');

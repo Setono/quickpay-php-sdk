@@ -48,35 +48,39 @@ final class PaymentsEndpoint extends CollectionEndpoint
     }
 
     /**
-     * POST `/payments/{id}/authorize`.
+     * POST `/payments/{id}/authorize`. Pass `$synchronized = true` to wait for and return the
+     * completed transaction instead of the default asynchronous (pending) response.
      */
-    public function authorize(int $id, ?AuthorizePaymentRequest $request = null): Payment
+    public function authorize(int $id, ?AuthorizePaymentRequest $request = null, bool $synchronized = false): Payment
     {
-        return $this->operation($id, 'authorize', $request);
+        return $this->operation($id, 'authorize', $request, $synchronized);
     }
 
     /**
-     * POST `/payments/{id}/capture`.
+     * POST `/payments/{id}/capture`. Pass `$synchronized = true` to wait for and return the completed
+     * transaction instead of the default asynchronous (pending) response.
      */
-    public function capture(int $id, CaptureRequest $request): Payment
+    public function capture(int $id, CaptureRequest $request, bool $synchronized = false): Payment
     {
-        return $this->operation($id, 'capture', $request);
+        return $this->operation($id, 'capture', $request, $synchronized);
     }
 
     /**
-     * POST `/payments/{id}/refund`.
+     * POST `/payments/{id}/refund`. Pass `$synchronized = true` to wait for and return the completed
+     * transaction instead of the default asynchronous (pending) response.
      */
-    public function refund(int $id, RefundRequest $request): Payment
+    public function refund(int $id, RefundRequest $request, bool $synchronized = false): Payment
     {
-        return $this->operation($id, 'refund', $request);
+        return $this->operation($id, 'refund', $request, $synchronized);
     }
 
     /**
-     * POST `/payments/{id}/cancel`.
+     * POST `/payments/{id}/cancel`. Pass `$synchronized = true` to wait for and return the completed
+     * transaction instead of the default asynchronous (pending) response.
      */
-    public function cancel(int $id): Payment
+    public function cancel(int $id, bool $synchronized = false): Payment
     {
-        return $this->operation($id, 'cancel');
+        return $this->operation($id, 'cancel', null, $synchronized);
     }
 
     /**

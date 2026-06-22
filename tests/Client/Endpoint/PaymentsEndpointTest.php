@@ -11,6 +11,7 @@ use Setono\Quickpay\Request\Payment\CaptureRequest;
 use Setono\Quickpay\Request\Payment\CreateLinkRequest;
 use Setono\Quickpay\Request\Payment\CreatePaymentRequest;
 use Setono\Quickpay\Request\Payment\RefundRequest;
+use Setono\Quickpay\Request\Payment\UpdatePaymentRequest;
 use Setono\Quickpay\Response\Payment\Payment;
 use Setono\Quickpay\TestDouble\ScriptedHttpClient;
 
@@ -172,6 +173,34 @@ final class PaymentsEndpointTest extends QuickpayTestCase
         self::assertSame('https://shop.example/continue', $body['continue_url']);
         self::assertSame('https://shop.example/cancel', $body['cancel_url']);
         self::assertSame('https://shop.example/callback', $body['callback_url']);
+    }
+
+    #[Test]
+    public function it_updates_a_payment_with_the_patch_method(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234', self::fixture('payment.json'));
+
+        $payment = $this->client($http)->payments()->updatePayment(1234, new UpdatePaymentRequest(variables: ['ref' => 'abc']));
+
+        self::assertSame(1234, $payment->id);
+
+        $sent = $http->sentRequests[0];
+        self::assertSame('PATCH', $sent->getMethod());
+        self::assertSame(self::BASE . '/payments/1234', (string) $sent->getUri());
+
+        /** @var array<string, mixed> $body */
+        $body = json_decode((string) $sent->getBody(), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertSame(['variables' => ['ref' => 'abc']], $body);
+    }
+
+    #[Test]
+    public function it_can_request_a_synchronized_operation(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234/capture?synchronized', self::fixture('payment.json'));
+
+        $this->client($http)->payments()->capture(1234, new CaptureRequest(1000), synchronized: true);
+
+        self::assertSame(self::BASE . '/payments/1234/capture?synchronized', (string) $http->sentRequests[0]->getUri());
     }
 
     #[Test]

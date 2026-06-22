@@ -29,6 +29,7 @@ final class CreatePaymentRequest extends Payload
         public ?Address $invoiceAddress = null,
         public ?Address $shippingAddress = null,
         public array $basket = [],
+        public ?Shipping $shipping = null,
     ) {
     }
 }

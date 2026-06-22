@@ -15,7 +15,7 @@ use Setono\Quickpay\Request\Payload;
  * account's default server-to-server callback URL for this payment. Property names are converted to
  * the snake_case keys Quickpay expects (e.g. `continueUrl` → `continue_url`).
  */
-final class CreateLink extends Payload
+final class CreateLinkRequest extends Payload
 {
     public function __construct(
         public ?int $amount = null,

@@ -10,7 +10,7 @@ use Setono\Quickpay\Request\Payload;
  * Body for `PUT /payments/{id}` — updates the mutable fields of an existing (not yet authorized)
  * payment. Only the properties you set are sent; `null` / empty values are stripped.
  */
-final class UpdatePayment extends Payload
+final class UpdatePaymentRequest extends Payload
 {
     /**
      * @param array<string, mixed> $variables

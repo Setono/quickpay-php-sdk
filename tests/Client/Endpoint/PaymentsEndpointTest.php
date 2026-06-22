@@ -7,9 +7,10 @@ namespace Setono\Quickpay\Client\Endpoint;
 use PHPUnit\Framework\Attributes\Test;
 use Setono\Quickpay\Enum\PaymentState;
 use Setono\Quickpay\QuickpayTestCase;
-use Setono\Quickpay\Request\Payment\AmountPayload;
-use Setono\Quickpay\Request\Payment\CreateLink;
-use Setono\Quickpay\Request\Payment\CreatePayment;
+use Setono\Quickpay\Request\Payment\CaptureRequest;
+use Setono\Quickpay\Request\Payment\CreateLinkRequest;
+use Setono\Quickpay\Request\Payment\CreatePaymentRequest;
+use Setono\Quickpay\Request\Payment\RefundRequest;
 use Setono\Quickpay\Response\Payment\Payment;
 use Setono\Quickpay\TestDouble\ScriptedHttpClient;
 
@@ -59,7 +60,7 @@ final class PaymentsEndpointTest extends QuickpayTestCase
     {
         $http = (new ScriptedHttpClient())->on(self::BASE . '/payments', self::fixture('payment.json'));
 
-        $payment = $this->client($http)->payments()->create(new CreatePayment(orderId: 'order-0001', currency: 'DKK'));
+        $payment = $this->client($http)->payments()->create(new CreatePaymentRequest(orderId: 'order-0001', currency: 'DKK'));
 
         self::assertSame(1234, $payment->id);
 
@@ -81,7 +82,7 @@ final class PaymentsEndpointTest extends QuickpayTestCase
     {
         $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234/capture', self::fixture('payment.json'));
 
-        $this->client($http)->payments()->capture(1234, new AmountPayload(1000));
+        $this->client($http)->payments()->capture(1234, new CaptureRequest(1000));
 
         $sent = $http->sentRequests[0];
         self::assertSame('POST', $sent->getMethod());
@@ -97,7 +98,7 @@ final class PaymentsEndpointTest extends QuickpayTestCase
     {
         $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234/refund', self::fixture('payment.json'));
 
-        $this->client($http)->payments()->refund(1234, new AmountPayload(250));
+        $this->client($http)->payments()->refund(1234, new RefundRequest(250));
 
         $sent = $http->sentRequests[0];
         self::assertSame(self::BASE . '/payments/1234/refund', (string) $sent->getUri());
@@ -139,7 +140,7 @@ final class PaymentsEndpointTest extends QuickpayTestCase
     {
         $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234/link', self::fixture('payment_link.json'));
 
-        $link = $this->client($http)->payments()->createLink(1234, new CreateLink(
+        $link = $this->client($http)->payments()->createLink(1234, new CreateLinkRequest(
             amount: 1000,
             continueUrl: 'https://shop.example/continue',
             cancelUrl: 'https://shop.example/cancel',

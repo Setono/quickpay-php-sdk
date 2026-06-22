@@ -15,7 +15,7 @@ namespace Setono\Quickpay\Request;
  * from the produced JSON rather than serialized as `"field": null`.
  *
  * Subclasses are `final class` with **mutable** `public` promoted properties and all-optional
- * constructor arguments, so a request can be built incrementally (`new CreatePayment()`, then
+ * constructor arguments, so a request can be built incrementally (`new CreatePaymentRequest()`, then
  * assign fields) or in one named-argument call. There is no construction-time validation — required
  * fields are enforced by the Quickpay API (a missing one surfaces as a `ValidationException`).
  */

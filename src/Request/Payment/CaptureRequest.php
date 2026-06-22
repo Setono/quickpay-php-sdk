@@ -7,10 +7,10 @@ namespace Setono\Quickpay\Request\Payment;
 use Setono\Quickpay\Request\Payload;
 
 /**
- * Body for the `capture` and `refund` operations, which both take an `amount` (in the payment's
- * currency, smallest unit) and optionally an `acquirer`.
+ * Body for `POST /payments/{id}/capture`. `amount` is the amount to capture, in the payment's
+ * currency expressed in the smallest unit (e.g. cents/øre).
  */
-final class AmountPayload extends Payload
+final class CaptureRequest extends Payload
 {
     public function __construct(
         public ?int $amount = null,

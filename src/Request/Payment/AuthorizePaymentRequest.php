@@ -12,7 +12,7 @@ use Setono\Quickpay\Request\Payload;
  * `amount` is the authorization amount in the payment's currency, expressed in the smallest unit
  * (e.g. cents/øre). Set `autoCapture` to `true` to capture immediately after authorization.
  */
-final class AuthorizePayment extends Payload
+final class AuthorizePaymentRequest extends Payload
 {
     public function __construct(
         public ?int $amount = null,

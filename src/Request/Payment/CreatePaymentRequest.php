@@ -14,7 +14,7 @@ use Setono\Quickpay\Request\Payload;
  * omitting them surfaces as a `ValidationException` from the API rather than a construction-time
  * error.
  */
-final class CreatePayment extends Payload
+final class CreatePaymentRequest extends Payload
 {
     /**
      * @param array<string, mixed> $variables a free-form key/value map stored with the payment

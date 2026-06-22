@@ -6,8 +6,8 @@ namespace Setono\Quickpay\Client;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use Setono\Quickpay\Request\Payment\CreateLink;
-use Setono\Quickpay\Request\Payment\CreatePayment;
+use Setono\Quickpay\Request\Payment\CreateLinkRequest;
+use Setono\Quickpay\Request\Payment\CreatePaymentRequest;
 
 /**
  * Hits the real Quickpay API. Skipped unless `QUICKPAY_LIVE=1` and `QUICKPAY_API_KEY` are set (use a
@@ -42,13 +42,13 @@ final class LiveClientTest extends TestCase
     {
         $client = $this->liveClient();
 
-        $payment = $client->payments()->create(new CreatePayment(
+        $payment = $client->payments()->create(new CreatePaymentRequest(
             orderId: 'sdk-probe-' . bin2hex(random_bytes(6)),
             currency: 'DKK',
         ));
         self::assertGreaterThan(0, $payment->id);
 
-        $link = $client->payments()->createLink($payment->id, new CreateLink(
+        $link = $client->payments()->createLink($payment->id, new CreateLinkRequest(
             amount: 1000,
             continueUrl: 'https://example.com/continue',
             cancelUrl: 'https://example.com/cancel',

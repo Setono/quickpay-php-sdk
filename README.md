@@ -32,7 +32,7 @@ separate sandbox host — use a **test API key** to run in test mode.
 
 ```php
 use Setono\Quickpay\Client\Client;
-use Setono\Quickpay\Request\Payment\CreatePayment;
+use Setono\Quickpay\Request\Payment\CreatePaymentRequest;
 
 $client = new Client('YOUR_API_KEY');
 
@@ -40,7 +40,7 @@ $client = new Client('YOUR_API_KEY');
 $client->ping(); // true, or throws on a non-2xx response
 
 // Create a payment
-$payment = $client->payments()->create(new CreatePayment(
+$payment = $client->payments()->create(new CreatePaymentRequest(
     orderId: 'order-0001',
     currency: 'DKK',
 ));
@@ -56,11 +56,11 @@ The recommended way to take a payment is to create the payment, create a link fo
 the customer to the returned URL. See [the Quickpay docs](https://learn.quickpay.net/tech-talk/payments/link/).
 
 ```php
-use Setono\Quickpay\Request\Payment\CreateLink;
+use Setono\Quickpay\Request\Payment\CreateLinkRequest;
 
-$payment = $client->payments()->create(new CreatePayment(orderId: 'order-0001', currency: 'DKK'));
+$payment = $client->payments()->create(new CreatePaymentRequest(orderId: 'order-0001', currency: 'DKK'));
 
-$link = $client->payments()->createLink($payment->id, new CreateLink(
+$link = $client->payments()->createLink($payment->id, new CreateLinkRequest(
     amount: 1000, // 10.00 DKK — amounts are integers in the smallest currency unit
     continueUrl: 'https://shop.example/continue',
     cancelUrl: 'https://shop.example/cancel',
@@ -76,10 +76,11 @@ header('Location: ' . $link->url);
 ### Capturing, refunding, cancelling
 
 ```php
-use Setono\Quickpay\Request\Payment\AmountPayload;
+use Setono\Quickpay\Request\Payment\CaptureRequest;
+use Setono\Quickpay\Request\Payment\RefundRequest;
 
-$client->payments()->capture($payment->id, new AmountPayload(1000));
-$client->payments()->refund($payment->id, new AmountPayload(250));
+$client->payments()->capture($payment->id, new CaptureRequest(1000));
+$client->payments()->refund($payment->id, new RefundRequest(250));
 $client->payments()->cancel($payment->id);
 ```
 
@@ -157,7 +158,7 @@ use Setono\Quickpay\Exception\QuickpayException;
 use Setono\Quickpay\Exception\ValidationException;
 
 try {
-    $client->payments()->create(new CreatePayment(orderId: 'dup', currency: 'DKK'));
+    $client->payments()->create(new CreatePaymentRequest(orderId: 'dup', currency: 'DKK'));
 } catch (ValidationException $e) {
     $e->getMessageText();       // Quickpay's "message"
     $e->getErrorCode();         // Quickpay's "error_code"

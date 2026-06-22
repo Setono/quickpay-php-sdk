@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Setono\Quickpay\Client\Endpoint;
 
-use Setono\Quickpay\Request\Payment\AmountPayload;
-use Setono\Quickpay\Request\Payment\AuthorizePayment;
-use Setono\Quickpay\Request\Payment\CreateLink;
-use Setono\Quickpay\Request\Payment\CreatePayment;
-use Setono\Quickpay\Request\Payment\UpdatePayment;
+use Setono\Quickpay\Request\Payment\AuthorizePaymentRequest;
+use Setono\Quickpay\Request\Payment\CaptureRequest;
+use Setono\Quickpay\Request\Payment\CreateLinkRequest;
+use Setono\Quickpay\Request\Payment\CreatePaymentRequest;
+use Setono\Quickpay\Request\Payment\RefundRequest;
+use Setono\Quickpay\Request\Payment\UpdatePaymentRequest;
 use Setono\Quickpay\Response\Payment\Link;
 use Setono\Quickpay\Response\Payment\Payment;
 
@@ -33,7 +34,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
     /**
      * POST `/payments`.
      */
-    public function create(CreatePayment $request): Payment
+    public function create(CreatePaymentRequest $request): Payment
     {
         return $this->createOne($request);
     }
@@ -41,7 +42,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
     /**
      * PUT `/payments/{id}`.
      */
-    public function updatePayment(int $id, UpdatePayment $request): Payment
+    public function updatePayment(int $id, UpdatePaymentRequest $request): Payment
     {
         return $this->update($id, $request);
     }
@@ -49,7 +50,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
     /**
      * POST `/payments/{id}/authorize`.
      */
-    public function authorize(int $id, ?AuthorizePayment $request = null): Payment
+    public function authorize(int $id, ?AuthorizePaymentRequest $request = null): Payment
     {
         return $this->operation($id, 'authorize', $request);
     }
@@ -57,7 +58,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
     /**
      * POST `/payments/{id}/capture`.
      */
-    public function capture(int $id, AmountPayload $request): Payment
+    public function capture(int $id, CaptureRequest $request): Payment
     {
         return $this->operation($id, 'capture', $request);
     }
@@ -65,7 +66,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
     /**
      * POST `/payments/{id}/refund`.
      */
-    public function refund(int $id, AmountPayload $request): Payment
+    public function refund(int $id, RefundRequest $request): Payment
     {
         return $this->operation($id, 'refund', $request);
     }
@@ -82,7 +83,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
      * PUT `/payments/{id}/link` — create or update the payment window link. Redirect the customer to
      * the returned {@see Link::$url}.
      */
-    public function createLink(int $id, CreateLink $request): Link
+    public function createLink(int $id, CreateLinkRequest $request): Link
     {
         return $this->mapItem(Link::class, $this->putSub($id, 'link', $request));
     }

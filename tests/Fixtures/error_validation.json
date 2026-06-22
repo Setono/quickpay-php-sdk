@@ -1,0 +1,9 @@
+{
+    "message": "Validation error",
+    "errors": {
+        "order_id": [
+            "has already been taken"
+        ]
+    },
+    "error_code": "invalid_parameters"
+}

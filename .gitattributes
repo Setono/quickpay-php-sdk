@@ -1,0 +1,13 @@
+/.editorconfig                  export-ignore
+/.gitattributes                 export-ignore
+/.github                        export-ignore
+/.gitignore                     export-ignore
+/README.md                      export-ignore
+/UPGRADE.md                     export-ignore
+/composer-dependency-analyser.php export-ignore
+/ecs.php                        export-ignore
+/infection.json.dist            export-ignore
+/phpstan.neon.dist              export-ignore
+/phpunit.xml.dist               export-ignore
+/rector.php                     export-ignore
+/tests                          export-ignore

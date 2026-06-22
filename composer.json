@@ -1,0 +1,65 @@
+{
+    "name": "setono/quickpay-php-sdk",
+    "description": "Consume the Quickpay API with this PHP SDK",
+    "license": "MIT",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Joachim Løvgaard",
+            "email": "joachim@loevgaard.dk"
+        }
+    ],
+    "require": {
+        "php": ">=8.1",
+        "cuyz/valinor": "^2.2.2",
+        "php-http/discovery": "^1.19",
+        "psr/http-client": "^1.0",
+        "psr/http-client-implementation": "^1",
+        "psr/http-factory": "^1.0",
+        "psr/http-factory-implementation": "^1",
+        "psr/http-message": "^1.0 || ^2.0",
+        "webmozart/assert": "^1.11"
+    },
+    "require-dev": {
+        "ergebnis/composer-normalize": "^2.52",
+        "infection/infection": "^0.27.11",
+        "kriswallsmith/buzz": "^1.2",
+        "nyholm/psr7": "^1.8",
+        "phpstan/extension-installer": "^1.4",
+        "phpstan/phpstan": "^2.2",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "phpstan/phpstan-webmozart-assert": "^2.0",
+        "phpunit/phpunit": "^10.5",
+        "rector/rector": "^2.0",
+        "sylius-labs/coding-standard": "^4.4"
+    },
+    "prefer-stable": true,
+    "autoload": {
+        "psr-4": {
+            "Setono\\Quickpay\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Setono\\Quickpay\\": "tests/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": false,
+            "ergebnis/composer-normalize": true,
+            "infection/extension-installer": true,
+            "php-http/discovery": false,
+            "phpstan/extension-installer": true
+        },
+        "sort-packages": true
+    },
+    "scripts": {
+        "analyse": "phpstan analyse",
+        "check-style": "ecs check",
+        "fix-style": "ecs check --fix",
+        "phpunit": "phpunit",
+        "rector": "rector"
+    }
+}

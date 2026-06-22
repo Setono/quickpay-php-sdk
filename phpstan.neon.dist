@@ -1,0 +1,15 @@
+includes:
+    # Valinor 2.x ships two PHPStan extensions: type inference for mapper()->map() / the
+    # normalizer, and an opt-in extension that suppresses purity errors on registerTransformer
+    # (Valinor declares that parameter pure-callable; our null-stripping / DateTime closures are
+    # pure in practice but PHPStan cannot prove it). The suppress extension implements
+    # PHPStan\Analyser\IgnoreErrorExtension, which only exists in PHPStan >= 2.2 — hence the
+    # `phpstan/phpstan: ^2.2` constraint in composer.json (the `^2.1` lowest would fatal here).
+    - vendor/cuyz/valinor/qa/PHPStan/valinor-phpstan-configuration.php
+    - vendor/cuyz/valinor/qa/PHPStan/valinor-phpstan-suppress-pure-errors.php
+
+parameters:
+    level: max
+    paths:
+        - src
+        - tests

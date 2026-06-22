@@ -1,0 +1,22 @@
+[
+    {
+        "id": 1,
+        "merchant_id": 1,
+        "order_id": "o-1",
+        "accepted": false,
+        "currency": "DKK",
+        "state": "new",
+        "test_mode": true,
+        "operations": []
+    },
+    {
+        "id": 2,
+        "merchant_id": 1,
+        "order_id": "o-2",
+        "accepted": true,
+        "currency": "DKK",
+        "state": "processed",
+        "test_mode": true,
+        "operations": []
+    }
+]

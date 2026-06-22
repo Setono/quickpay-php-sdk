@@ -91,6 +91,23 @@ pending operation. Pass `synchronized: true` to wait for and receive the complet
 $payment = $client->payments()->capture($payment->id, new CaptureRequest(1000), synchronized: true);
 ```
 
+### Updating a payment
+
+Before a payment is authorized you can update some of its fields (`PATCH /payments/{id}`). Note the
+API does not allow changing `order_id` or `basket` after creation:
+
+```php
+use Setono\Quickpay\Request\Payment\UpdatePaymentRequest;
+
+$client->payments()->updatePayment($payment->id, new UpdatePaymentRequest(
+    variables: ['internal_ref' => 'abc-123'],
+));
+```
+
+> Authorizing directly via the API — `$client->payments()->authorize($id, new AuthorizePaymentRequest(...))` —
+> requires you to handle card data and puts you in PCI scope. Most integrations authorize through the
+> payment window instead (see the link flow above).
+
 ### Reading and listing payments
 
 ```php

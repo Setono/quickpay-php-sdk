@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\Test;
 use Setono\Quickpay\Exception\ConflictException;
 use Setono\Quickpay\Exception\ForbiddenException;
 use Setono\Quickpay\Exception\InternalServerErrorException;
+use Setono\Quickpay\Exception\InvalidUrlException;
 use Setono\Quickpay\Exception\MalformedResponseException;
 use Setono\Quickpay\Exception\MethodNotAllowedException;
 use Setono\Quickpay\Exception\NotFoundException;
@@ -151,5 +152,45 @@ final class ClientTest extends QuickpayTestCase
         $this->expectException(MalformedResponseException::class);
 
         $this->client($http)->ping();
+    }
+
+    #[Test]
+    public function it_memoizes_the_payments_endpoint(): void
+    {
+        $client = $this->client(new ScriptedHttpClient());
+
+        self::assertSame($client->payments(), $client->payments());
+    }
+
+    #[Test]
+    public function it_allows_an_absolute_url_on_the_api_host(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/ping', self::fixture('ping.json'));
+
+        self::assertSame(['message' => 'Pong'], $this->client($http)->get('https://api.quickpay.net/ping'));
+    }
+
+    #[Test]
+    public function it_refuses_to_send_to_a_foreign_host(): void
+    {
+        $this->expectException(InvalidUrlException::class);
+
+        $this->client(new ScriptedHttpClient())->get('https://evil.example/payments');
+    }
+
+    #[Test]
+    public function it_refuses_a_non_default_port_on_the_api_host(): void
+    {
+        $this->expectException(InvalidUrlException::class);
+
+        $this->client(new ScriptedHttpClient())->get('https://api.quickpay.net:8443/ping');
+    }
+
+    #[Test]
+    public function it_refuses_an_absolute_url_combined_with_a_query(): void
+    {
+        $this->expectException(InvalidUrlException::class);
+
+        $this->client(new ScriptedHttpClient())->get('https://api.quickpay.net/ping', ['foo' => 'bar']);
     }
 }

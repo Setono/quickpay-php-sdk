@@ -38,4 +38,14 @@ final class PaymentTest extends TestCase
     {
         self::assertNull((new Operation(id: 1, type: 'brand_new_type'))->type());
     }
+
+    #[Test]
+    public function it_defaults_the_boolean_flags_to_false(): void
+    {
+        $payment = new Payment(id: 1, orderId: 'o', currency: 'DKK', state: 'new', merchantId: 1);
+
+        self::assertFalse($payment->accepted);
+        self::assertFalse($payment->testMode);
+        self::assertFalse((new Operation(id: 1, type: 'capture'))->pending);
+    }
 }

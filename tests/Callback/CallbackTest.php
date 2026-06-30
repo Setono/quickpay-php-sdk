@@ -119,6 +119,22 @@ final class CallbackTest extends QuickpayTestCase
     }
 
     #[Test]
+    public function it_throws_on_an_invalid_checksum_from_a_request(): void
+    {
+        $raw = self::fixture('callback_payment.json');
+        $handler = new CallbackHandler(self::PRIVATE_KEY);
+
+        $request = new ServerRequest('POST', 'https://shop.example/callback', [
+            CallbackValidator::CHECKSUM_HEADER => 'not-the-right-checksum',
+            Callback::RESOURCE_TYPE_HEADER => 'Payment',
+        ], $raw);
+
+        $this->expectException(InvalidChecksumException::class);
+
+        $handler->handle($request);
+    }
+
+    #[Test]
     public function it_throws_on_an_unexpected_resource_type(): void
     {
         $raw = self::fixture('callback_payment.json');

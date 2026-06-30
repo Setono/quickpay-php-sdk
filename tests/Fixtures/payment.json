@@ -20,7 +20,7 @@
         "exp_month": 12,
         "exp_year": 2030,
         "country": "DNK",
-        "is_3d_secure": "true",
+        "is_3d_secure": false,
         "issued_to": "John Doe",
         "hash": "f3a9c0b1",
         "customer_ip": "203.0.113.7",

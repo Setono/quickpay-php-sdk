@@ -223,4 +223,25 @@ composer check-style   # ECS
 composer fix-style     # ECS, auto-fixing
 ```
 
-Live API tests are skipped unless `QUICKPAY_LIVE=1` and `QUICKPAY_API_KEY` (a test key) are set.
+Live API tests are skipped unless `QUICKPAY_LIVE=1` and `QUICKPAY_API_KEY` are set. (Quickpay has no
+separate test key — you use your real API key, and a payment is a *test* payment when paid with a
+[test card](https://learn.quickpay.net/tech-talk/appendixes/test/).)
+
+## End-to-end testing
+
+Unit tests fake the HTTP layer; to verify the *whole* flow — create a payment, complete it in
+Quickpay's hosted window with a test card, and receive and verify the signed asynchronous callback —
+use the harness under [`examples/e2e/`](examples/e2e/README.md). It runs a local callback listener,
+tunnels it to a public HTTPS URL with [Expose](https://expose.dev) (a small client Dockerfile is
+included) so Quickpay can reach it, and gives you CLI scripts to create payments and drive
+capture/refund/cancel:
+
+```bash
+composer e2e:listen     # terminal A: php -S 0.0.0.0:8000 listener that verifies callbacks
+# terminal B: run the Expose tunnel (see examples/e2e/README.md)
+QUICKPAY_CALLBACK_BASE=https://<your>.sharedwithexpose.com composer e2e:create -- 1000 DKK
+composer e2e:operate -- capture <paymentId> 1000
+```
+
+See [`examples/e2e/README.md`](examples/e2e/README.md) for the full runbook, the test-card table, and
+macOS/Docker networking notes.

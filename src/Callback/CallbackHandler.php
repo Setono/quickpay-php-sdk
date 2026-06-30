@@ -9,6 +9,7 @@ use CuyZ\Valinor\Mapper\Source\Source;
 use CuyZ\Valinor\MapperBuilder;
 use Psr\Http\Message\RequestInterface;
 use Setono\Quickpay\Client\Client;
+use Setono\Quickpay\Exception\InvalidCallbackException;
 use Setono\Quickpay\Exception\InvalidChecksumException;
 use Setono\Quickpay\Response\Payment\Payment;
 
@@ -43,22 +44,31 @@ final class CallbackHandler
      * Deserialize a raw callback body into a {@see Payment} WITHOUT verifying the checksum. Prefer
      * {@see self::handle()} so an unauthenticated body is never deserialized.
      *
-     * @throws \JsonException if the body is not valid JSON or does not decode to an object
-     * @throws MappingError if the decoded body does not fit the Payment DTO
+     * @throws InvalidCallbackException if the body is not valid JSON, does not decode to an object,
+     *                                  or does not match the expected payment shape
      */
     public function deserialize(string $rawBody): Payment
     {
-        /** @var mixed $decoded */
-        $decoded = json_decode($rawBody, true, flags: \JSON_THROW_ON_ERROR);
+        try {
+            /** @var mixed $decoded */
+            $decoded = json_decode($rawBody, true, flags: \JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            throw new InvalidCallbackException('The callback body is not valid JSON: ' . $e->getMessage(), 0, $e);
+        }
 
         if (!is_array($decoded)) {
-            throw new \JsonException(sprintf(
+            throw new InvalidCallbackException(sprintf(
                 'Expected the callback body to decode to an object but got %s.',
                 get_debug_type($decoded),
             ));
         }
 
-        $payment = $this->mapperBuilder->mapper()->map(Payment::class, Source::array($decoded)->camelCaseKeys());
+        try {
+            $payment = $this->mapperBuilder->mapper()->map(Payment::class, Source::array($decoded)->camelCaseKeys());
+        } catch (MappingError $e) {
+            throw new InvalidCallbackException('The callback body does not match the expected payment shape: ' . $e->getMessage(), 0, $e);
+        }
+
         $payment->raw = $decoded;
 
         return $payment;
@@ -71,8 +81,7 @@ final class CallbackHandler
      * @param string $checksum the value of the `QuickPay-Checksum-Sha256` header
      *
      * @throws InvalidChecksumException if the checksum does not match — the callback is NOT authentic
-     * @throws \JsonException if the (verified) body is not valid JSON
-     * @throws MappingError if the (verified) body does not fit the Payment DTO
+     * @throws InvalidCallbackException if the (verified) body is not valid JSON or does not fit the Payment DTO
      */
     public function handle(string $rawBody, string $checksum): Payment
     {
@@ -90,8 +99,7 @@ final class CallbackHandler
      * `QuickPay-Checksum-Sha256` header off it. The body is read once and reused for both steps.
      *
      * @throws InvalidChecksumException if the checksum does not match
-     * @throws \JsonException if the verified body is not valid JSON
-     * @throws MappingError if the verified body does not fit the Payment DTO
+     * @throws InvalidCallbackException if the verified body is not valid JSON or does not fit the Payment DTO
      */
     public function handleRequest(RequestInterface $request): Payment
     {

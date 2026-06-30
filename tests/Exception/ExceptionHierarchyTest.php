@@ -46,6 +46,7 @@ final class ExceptionHierarchyTest extends TestCase
         yield 'unexpected status code is a quickpay exception' => [UnexpectedStatusCodeException::class, QuickpayException::class];
         yield 'invalid url is a quickpay exception' => [InvalidUrlException::class, QuickpayException::class];
         yield 'invalid checksum is a quickpay exception' => [InvalidChecksumException::class, QuickpayException::class];
+        yield 'invalid callback is a quickpay exception' => [InvalidCallbackException::class, QuickpayException::class];
     }
 
     #[Test]

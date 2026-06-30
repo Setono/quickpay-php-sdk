@@ -7,6 +7,7 @@ namespace Setono\Quickpay\Callback;
 use Nyholm\Psr7\Request;
 use PHPUnit\Framework\Attributes\Test;
 use Setono\Quickpay\Enum\PaymentState;
+use Setono\Quickpay\Exception\InvalidCallbackException;
 use Setono\Quickpay\Exception\InvalidChecksumException;
 use Setono\Quickpay\QuickpayTestCase;
 
@@ -95,6 +96,31 @@ final class CallbackTest extends QuickpayTestCase
         $this->expectException(InvalidChecksumException::class);
 
         $handler->handle(self::fixture('callback_payment.json'), 'not-the-right-checksum');
+    }
+
+    #[Test]
+    public function it_throws_an_invalid_callback_exception_on_non_json(): void
+    {
+        $this->expectException(InvalidCallbackException::class);
+
+        (new CallbackHandler(self::PRIVATE_KEY))->deserialize('this is not json');
+    }
+
+    #[Test]
+    public function it_throws_an_invalid_callback_exception_when_the_body_is_not_an_object(): void
+    {
+        $this->expectException(InvalidCallbackException::class);
+
+        (new CallbackHandler(self::PRIVATE_KEY))->deserialize('"a json string, not an object"');
+    }
+
+    #[Test]
+    public function it_throws_an_invalid_callback_exception_when_the_body_is_not_a_payment(): void
+    {
+        $this->expectException(InvalidCallbackException::class);
+
+        // Valid JSON object, but missing the required payment fields.
+        (new CallbackHandler(self::PRIVATE_KEY))->deserialize('{"foo":"bar"}');
     }
 
     #[Test]

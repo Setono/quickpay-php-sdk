@@ -3,6 +3,8 @@
 [![Latest Stable Version](https://poser.pugx.org/setono/quickpay-php-sdk/v/stable)](https://packagist.org/packages/setono/quickpay-php-sdk)
 [![License](https://poser.pugx.org/setono/quickpay-php-sdk/license)](https://packagist.org/packages/setono/quickpay-php-sdk)
 [![Build Status](https://github.com/Setono/quickpay-php-sdk/actions/workflows/build.yaml/badge.svg)](https://github.com/Setono/quickpay-php-sdk/actions)
+[![Code Coverage](https://codecov.io/gh/Setono/quickpay-php-sdk/branch/1.x/graph/badge.svg)](https://codecov.io/gh/Setono/quickpay-php-sdk)
+[![Mutation testing badge](https://img.shields.io/endpoint?style=flat&url=https%3A%2F%2Fbadge-api.stryker-mutator.io%2Fgithub.com%2FSetono%2Fquickpay-php-sdk%2F1.x)](https://dashboard.stryker-mutator.io/reports/github.com/Setono/quickpay-php-sdk/1.x)
 
 Consume the [Quickpay API](https://learn.quickpay.net/tech-talk/api/) in PHP. A small, strongly-typed
 SDK focused on the `payments` resource, the `/ping` health check, the payment-window link flow, and

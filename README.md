@@ -30,7 +30,8 @@ composer require kriswallsmith/buzz nyholm/psr7
 
 Authenticate with your Quickpay **API key** (Quickpay manager → Settings → API user). The SDK uses
 the key as the HTTP Basic password with an empty username, exactly as Quickpay expects. There is no
-separate sandbox host — use a **test API key** to run in test mode.
+separate sandbox host or test key — a payment becomes a *test* payment (`test_mode: true`) when it's
+paid with a [test card](https://learn.quickpay.net/tech-talk/appendixes/test/).
 
 ```php
 use Setono\Quickpay\Client\Client;
@@ -235,10 +236,13 @@ $client = new Client(
 
 ```bash
 composer install
-composer phpunit       # tests
-composer analyse       # PHPStan (level max)
-composer check-style   # ECS
-composer fix-style     # ECS, auto-fixing
+composer phpunit              # tests
+composer analyse             # PHPStan (level max)
+composer check-style         # ECS
+composer fix-style           # ECS, auto-fixing
+composer rector -- --dry-run # Rector modernization (CI runs --dry-run)
+vendor/bin/infection         # mutation testing (min covered MSI 70%)
+composer e2e:smoke           # real-API smoke test (needs QUICKPAY_API_KEY — see examples/e2e/)
 ```
 
 Live API tests are skipped unless `QUICKPAY_LIVE=1` and `QUICKPAY_API_KEY` are set. (Quickpay has no

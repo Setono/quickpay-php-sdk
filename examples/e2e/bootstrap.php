@@ -12,6 +12,51 @@ use Setono\Quickpay\Client\Client;
 
 require __DIR__ . '/../../vendor/autoload.php';
 
+e2e_load_dotenv();
+
+/**
+ * Load KEY=VALUE pairs from a `.env.local` file at the repo root into the environment (without
+ * overriding variables already set for real). Lets you keep secrets in one local, gitignored file
+ * instead of exporting them every time. The function is hoisted, so calling it above is fine.
+ */
+function e2e_load_dotenv(): void
+{
+    $path = __DIR__ . '/../../.env.local';
+    if (!is_file($path)) {
+        return;
+    }
+
+    $lines = file($path, \FILE_IGNORE_NEW_LINES | \FILE_SKIP_EMPTY_LINES);
+    if (false === $lines) {
+        return;
+    }
+
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ('' === $line || str_starts_with($line, '#') || !str_contains($line, '=')) {
+            continue;
+        }
+
+        [$name, $value] = explode('=', $line, 2);
+        $name = trim($name);
+        $value = trim($value);
+
+        if (strlen($value) >= 2
+            && (('"' === $value[0] && '"' === $value[-1]) || ("'" === $value[0] && "'" === $value[-1]))) {
+            $value = substr($value, 1, -1);
+        }
+
+        // Never override a variable already set in the real environment.
+        if ('' === $name || false !== getenv($name)) {
+            continue;
+        }
+
+        putenv($name . '=' . $value);
+        $_ENV[$name] = $value;
+        $_SERVER[$name] = $value;
+    }
+}
+
 /**
  * Read an environment variable. When required and missing, print guidance and exit.
  */

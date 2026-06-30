@@ -3,3 +3,4 @@
 /.phpunit.cache/
 /phpunit.xml
 /.build/
+/.env.local

@@ -31,12 +31,23 @@ internet with [Expose](https://expose.dev).
 
 - A clone of this repo with dev dependencies installed: `composer install` (the harness uses the
   buzz + nyholm dev deps via PSR auto-discovery — there's nothing to wire manually).
-- Two Quickpay credentials, exported as env vars (never commit them):
+- Two Quickpay credentials. Put them in a gitignored `.env.local` at the repo root (the harness loads
+  it automatically), or export them as env vars (real env vars win over the file):
   ```bash
-  export QUICKPAY_API_KEY=...       # Settings > API user
-  export QUICKPAY_PRIVATE_KEY=...   # Settings > Integration
+  cp .env.local.example .env.local   # then fill in QUICKPAY_API_KEY + QUICKPAY_PRIVATE_KEY
+  # ...or:
+  export QUICKPAY_API_KEY=...        # Settings > API user
+  export QUICKPAY_PRIVATE_KEY=...    # Settings > Integration
   ```
-- A free [expose.dev](https://expose.dev) account and its auth token.
+- A free [expose.dev](https://expose.dev) account and its auth token (for the callback half).
+
+## Quick real-API check (no browser/tunnel)
+
+Verify auth + create-payment + create-link against the live API. Charges nothing (no card is entered):
+
+```bash
+composer e2e:smoke
+```
 
 ## Run it (three terminals)
 

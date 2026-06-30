@@ -138,28 +138,44 @@ Always verify the checksum against the **raw, byte-for-byte request body** — d
 re-encode the JSON first, or the checksum won't match. The SDK uses `hash_equals()` for a
 timing-safe comparison.
 
+A callback isn't always a payment — Quickpay also sends them for subscriptions — so `handle()`
+returns a verified `Callback` carrying the resource type (from the `QuickPay-Resource-Type` header).
+That header is required and must be a known value (`Payment` or `Subscription`); an unexpected or
+missing one is rejected. Only deserialize to a `Payment` once you know it is one:
+
 ```php
 use Setono\Quickpay\Callback\CallbackHandler;
+use Setono\Quickpay\Enum\ResourceType;
 
 $handler = new CallbackHandler('YOUR_PRIVATE_KEY');
 
-$rawBody  = file_get_contents('php://input');
-$checksum = $_SERVER['HTTP_QUICKPAY_CHECKSUM_SHA256'] ?? '';
-
 try {
-    // Verifies the checksum AND deserializes the body into a Payment in one step.
-    $payment = $handler->handle($rawBody, $checksum);
+    // $request is your incoming PSR-7 server request (Symfony/Laravel/PSR-15 all give you one).
+    // Verifies the checksum and validates the resource type — does NOT assume it's a payment.
+    $callback = $handler->handle($request);
 } catch (\Setono\Quickpay\Exception\InvalidChecksumException $e) {
-    http_response_code(403);
+    http_response_code(403); // not authentic
     exit;
+} catch (\Setono\Quickpay\Exception\InvalidCallbackException $e) {
+    http_response_code(400); // unknown resource type (or a malformed body)
+    exit;
+}
+
+if ($callback->isPayment()) {
+    $payment = $callback->payment();        // typed Payment
+    // ... handle $payment->state(), $payment->accepted, $payment->operations, $payment->raw ...
+} elseif (ResourceType::Subscription === $callback->type) {
+    // a subscription — inspect $callback->toArray()
 }
 
 // Respond 2xx so Quickpay marks the callback as delivered.
 http_response_code(200);
 ```
 
-If you have a PSR-7 server request, `handleRequest($request)` reads the raw body and the checksum
-header for you. To only verify (without deserializing), use `CallbackValidator`.
+No PSR-7 request handy? Use `handleRaw($rawBody, $checksum, $resourceType)` with the raw body and
+header values — e.g. `file_get_contents('php://input')`, `$_SERVER['HTTP_QUICKPAY_CHECKSUM_SHA256']`,
+`$_SERVER['HTTP_QUICKPAY_RESOURCE_TYPE']`. This is also the one to use if your framework already
+consumed the request body. To only verify (without wrapping), use `CallbackValidator`.
 
 ### Accessing fields the SDK doesn't model
 

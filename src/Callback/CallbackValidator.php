@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Setono\Quickpay\Callback;
 
-use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * Validates the authenticity of an incoming Quickpay callback (webhook).
@@ -50,7 +50,7 @@ final class CallbackValidator
      * to deserialize it with {@see CallbackHandler}), capture `(string) $request->getBody()` once
      * and pass that string to both {@see self::isValid()} and the handler, or rewind the stream.
      */
-    public function isValidRequest(RequestInterface $request): bool
+    public function isValidRequest(ServerRequestInterface $request): bool
     {
         return $this->isValid(
             (string) $request->getBody(),

@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Setono\Quickpay\Callback;
 
-use Nyholm\Psr7\Request;
+use Nyholm\Psr7\ServerRequest;
 use PHPUnit\Framework\Attributes\Test;
 use Setono\Quickpay\Enum\PaymentState;
+use Setono\Quickpay\Enum\ResourceType;
 use Setono\Quickpay\Exception\InvalidCallbackException;
 use Setono\Quickpay\Exception\InvalidChecksumException;
 use Setono\Quickpay\QuickpayTestCase;
@@ -14,6 +15,8 @@ use Setono\Quickpay\QuickpayTestCase;
 final class CallbackTest extends QuickpayTestCase
 {
     private const PRIVATE_KEY = 'super-secret-private-key';
+
+    // --- CallbackValidator ---
 
     #[Test]
     public function it_accepts_a_valid_checksum(): void
@@ -53,7 +56,7 @@ final class CallbackTest extends QuickpayTestCase
         $validator = new CallbackValidator(self::PRIVATE_KEY);
         $checksum = $validator->sign($raw);
 
-        $request = new Request(
+        $request = new ServerRequest(
             'POST',
             'https://shop.example/callback',
             [CallbackValidator::CHECKSUM_HEADER => $checksum],
@@ -63,13 +66,20 @@ final class CallbackTest extends QuickpayTestCase
         self::assertTrue($validator->isValidRequest($request));
     }
 
+    // --- CallbackHandler / Callback ---
+
     #[Test]
-    public function it_deserializes_a_callback_body_into_a_payment(): void
+    public function it_returns_a_verified_payment_callback(): void
     {
+        $raw = self::fixture('callback_payment.json');
         $handler = new CallbackHandler(self::PRIVATE_KEY);
 
-        $payment = $handler->deserialize(self::fixture('callback_payment.json'));
+        $callback = $handler->handleRaw($raw, $handler->validator()->sign($raw), ResourceType::Payment->value);
 
+        self::assertSame(ResourceType::Payment, $callback->type);
+        self::assertTrue($callback->isPayment());
+
+        $payment = $callback->payment();
         self::assertSame(9999, $payment->id);
         self::assertSame('cb-1', $payment->orderId);
         self::assertSame(PaymentState::Processed, $payment->state());
@@ -77,15 +87,25 @@ final class CallbackTest extends QuickpayTestCase
     }
 
     #[Test]
-    public function it_handles_a_valid_callback_end_to_end(): void
+    public function it_reads_all_quickpay_headers_off_a_psr7_request(): void
     {
         $raw = self::fixture('callback_payment.json');
         $handler = new CallbackHandler(self::PRIVATE_KEY);
-        $checksum = $handler->validator()->sign($raw);
 
-        $payment = $handler->handle($raw, $checksum);
+        $request = new ServerRequest('POST', 'https://shop.example/callback', [
+            CallbackValidator::CHECKSUM_HEADER => $handler->validator()->sign($raw),
+            Callback::RESOURCE_TYPE_HEADER => 'Payment',
+            Callback::ACCOUNT_ID_HEADER => '12345',
+            Callback::API_VERSION_HEADER => 'v10',
+        ], $raw);
 
-        self::assertSame(9999, $payment->id);
+        $callback = $handler->handle($request);
+
+        self::assertSame(ResourceType::Payment, $callback->type);
+        self::assertTrue($callback->isPayment());
+        self::assertSame('12345', $callback->accountId);
+        self::assertSame('v10', $callback->apiVersion);
+        self::assertSame(9999, $callback->payment()->id);
     }
 
     #[Test]
@@ -95,50 +115,84 @@ final class CallbackTest extends QuickpayTestCase
 
         $this->expectException(InvalidChecksumException::class);
 
-        $handler->handle(self::fixture('callback_payment.json'), 'not-the-right-checksum');
+        $handler->handleRaw(self::fixture('callback_payment.json'), 'not-the-right-checksum', ResourceType::Payment->value);
     }
 
     #[Test]
-    public function it_throws_an_invalid_callback_exception_on_non_json(): void
-    {
-        $this->expectException(InvalidCallbackException::class);
-
-        (new CallbackHandler(self::PRIVATE_KEY))->deserialize('this is not json');
-    }
-
-    #[Test]
-    public function it_throws_an_invalid_callback_exception_when_the_body_is_not_an_object(): void
-    {
-        $this->expectException(InvalidCallbackException::class);
-
-        (new CallbackHandler(self::PRIVATE_KEY))->deserialize('"a json string, not an object"');
-    }
-
-    #[Test]
-    public function it_throws_an_invalid_callback_exception_when_the_body_is_not_a_payment(): void
-    {
-        $this->expectException(InvalidCallbackException::class);
-
-        // Valid JSON object, but missing the required payment fields.
-        (new CallbackHandler(self::PRIVATE_KEY))->deserialize('{"foo":"bar"}');
-    }
-
-    #[Test]
-    public function it_handles_a_valid_psr7_request_end_to_end(): void
+    public function it_throws_on_an_unexpected_resource_type(): void
     {
         $raw = self::fixture('callback_payment.json');
         $handler = new CallbackHandler(self::PRIVATE_KEY);
-        $checksum = $handler->validator()->sign($raw);
 
-        $request = new Request(
+        $this->expectException(InvalidCallbackException::class);
+
+        // Valid checksum, but a resource type the SDK doesn't model.
+        $handler->handleRaw($raw, $handler->validator()->sign($raw), 'Payout');
+    }
+
+    #[Test]
+    public function it_throws_on_a_missing_resource_type(): void
+    {
+        $raw = self::fixture('callback_payment.json');
+        $handler = new CallbackHandler(self::PRIVATE_KEY);
+
+        $request = new ServerRequest(
             'POST',
             'https://shop.example/callback',
-            [CallbackValidator::CHECKSUM_HEADER => $checksum],
+            [CallbackValidator::CHECKSUM_HEADER => $handler->validator()->sign($raw)],
             $raw,
         );
 
-        $payment = $handler->handleRequest($request);
+        $this->expectException(InvalidCallbackException::class);
 
-        self::assertSame(9999, $payment->id);
+        $handler->handle($request);
+    }
+
+    #[Test]
+    public function it_does_not_map_a_non_payment_resource_to_a_payment(): void
+    {
+        $raw = '{"id":42,"state":"active"}';
+        $handler = new CallbackHandler(self::PRIVATE_KEY);
+
+        $callback = $handler->handleRaw($raw, $handler->validator()->sign($raw), ResourceType::Subscription->value);
+
+        self::assertSame(ResourceType::Subscription, $callback->type);
+        self::assertFalse($callback->isPayment());
+        self::assertSame(['id' => 42, 'state' => 'active'], $callback->toArray());
+
+        $this->expectException(InvalidCallbackException::class);
+        $callback->payment();
+    }
+
+    #[Test]
+    public function payment_throws_an_invalid_callback_exception_on_non_json(): void
+    {
+        $handler = new CallbackHandler(self::PRIVATE_KEY);
+        $callback = $handler->handleRaw('this is not json', $handler->validator()->sign('this is not json'), ResourceType::Payment->value);
+
+        $this->expectException(InvalidCallbackException::class);
+        $callback->payment();
+    }
+
+    #[Test]
+    public function payment_throws_when_the_body_is_not_an_object(): void
+    {
+        $handler = new CallbackHandler(self::PRIVATE_KEY);
+        $body = '"a json string, not an object"';
+        $callback = $handler->handleRaw($body, $handler->validator()->sign($body), ResourceType::Payment->value);
+
+        $this->expectException(InvalidCallbackException::class);
+        $callback->payment();
+    }
+
+    #[Test]
+    public function payment_throws_when_the_body_is_not_a_payment(): void
+    {
+        $handler = new CallbackHandler(self::PRIVATE_KEY);
+        $body = '{"foo":"bar"}';
+        $callback = $handler->handleRaw($body, $handler->validator()->sign($body), ResourceType::Payment->value);
+
+        $this->expectException(InvalidCallbackException::class);
+        $callback->payment();
     }
 }

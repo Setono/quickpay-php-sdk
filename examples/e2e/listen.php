@@ -27,16 +27,41 @@ $path = parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), \PHP_URL_PATH) ?: '
 if ('POST' === $method && '/callback' === $path) {
     $rawBody = (string) file_get_contents('php://input');
     $checksum = (string) ($_SERVER['HTTP_QUICKPAY_CHECKSUM_SHA256'] ?? '');
+    $resourceType = (string) ($_SERVER['HTTP_QUICKPAY_RESOURCE_TYPE'] ?? '');
 
     try {
-        // handle() verifies the checksum against the raw body, then deserializes to a Payment.
-        $payment = e2e_callback_handler()->handle($rawBody, $checksum);
+        // We have raw superglobals here (not a PSR-7 request), so use handleRaw(). It verifies the
+        // checksum and requires the QuickPay-Resource-Type header to be a known value.
+        $callback = e2e_callback_handler()->handleRaw($rawBody, $checksum, $resourceType);
     } catch (InvalidChecksumException $e) {
         http_response_code(403);
         e2e_log('CALLBACK REJECTED (bad checksum): ' . $e->getMessage());
         echo "invalid checksum\n";
 
         return;
+    } catch (InvalidCallbackException $e) {
+        http_response_code(400);
+        e2e_log('CALLBACK REJECTED (resource type): ' . $e->getMessage());
+        echo "invalid resource type\n";
+
+        return;
+    }
+
+    // Callbacks aren't always payments (subscriptions, etc.) — only deserialize when it is one.
+    if (!$callback->isPayment()) {
+        e2e_log(sprintf(
+            'CALLBACK OK  resource_type=%s (not a payment) account=%s',
+            $callback->type->value,
+            (string) ($_SERVER['HTTP_QUICKPAY_ACCOUNT_ID'] ?? '-'),
+        ));
+        http_response_code(200);
+        echo "ok\n";
+
+        return;
+    }
+
+    try {
+        $payment = $callback->payment();
     } catch (InvalidCallbackException $e) {
         http_response_code(400);
         e2e_log('CALLBACK INVALID (bad body): ' . $e->getMessage());

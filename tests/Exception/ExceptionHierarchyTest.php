@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Setono\Quickpay\Exception;
 
+use Nyholm\Psr7\Request;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -68,5 +69,71 @@ final class ExceptionHierarchyTest extends TestCase
         self::assertNull($e->getMessageText());
         self::assertNull($e->getErrorCode());
         self::assertSame([], $e->getValidationErrors());
+    }
+
+    #[Test]
+    public function it_exposes_the_response(): void
+    {
+        $response = new Response(500);
+
+        self::assertSame($response, (new InternalServerErrorException($response))->getResponse());
+    }
+
+    #[Test]
+    public function it_parses_the_body_lazily_from_the_response_stream(): void
+    {
+        // No $body at construction (and a custom $message, so the constructor never touches the
+        // stream) — the getters must read and decode the response body on first use.
+        $e = new InternalServerErrorException(
+            new Response(500, [], '{"message":"Oops","errors":{"a":["x"],"b":["y"]}}'),
+            message: 'custom',
+        );
+
+        self::assertSame('custom', $e->getMessage());
+        self::assertSame('Oops', $e->getMessageText());
+        self::assertSame(['a' => ['x'], 'b' => ['y']], $e->getValidationErrors());
+    }
+
+    #[Test]
+    public function it_prefers_the_pre_read_body_over_the_response_stream(): void
+    {
+        // Simulates a non-seekable stream that was already drained: the response stream yields
+        // nothing, and only the pre-read $body keeps the getters working.
+        $e = new ValidationException(new Response(422), body: '{"message":"Validation error"}');
+
+        self::assertSame('Validation error', $e->getMessageText());
+    }
+
+    #[Test]
+    public function it_casts_an_integer_error_code_to_string(): void
+    {
+        $body = '{"error_code":40000}';
+        $e = new ValidationException(new Response(400, [], $body), body: $body);
+
+        self::assertSame('40000', $e->getErrorCode());
+    }
+
+    #[Test]
+    public function it_returns_no_validation_errors_when_the_errors_field_is_not_a_map(): void
+    {
+        $body = '{"errors":"boom"}';
+        $e = new ValidationException(new Response(400, [], $body), body: $body);
+
+        self::assertSame([], $e->getValidationErrors());
+    }
+
+    #[Test]
+    public function it_builds_a_default_message_with_a_sanitized_request_context_and_the_body(): void
+    {
+        $request = new Request('GET', 'https://api.quickpay.net/payments?apikey=secret#frag');
+        $e = new ValidationException(new Response(422), body: ' {"message":"boom"} ', request: $request);
+
+        // The query string and fragment are stripped so consumer-supplied secrets never leak into
+        // exception messages or logs; the body text is trimmed.
+        self::assertSame(
+            'The status code was: 422. [GET https://api.quickpay.net/payments] The body was: {"message":"boom"}.',
+            $e->getMessage(),
+        );
+        self::assertSame(0, $e->getCode());
     }
 }

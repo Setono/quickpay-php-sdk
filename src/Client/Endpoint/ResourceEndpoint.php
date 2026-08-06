@@ -13,13 +13,13 @@ use Setono\Quickpay\Response\Resource;
  * Subclasses declare two protected hints: {@see self::getPath()} (the resource URL path) and
  * {@see self::getItemClass()} (the typed DTO class). Shared helpers map the JSON response to that
  * DTO and stamp `$raw`:
- *  - {@see self::getOne()}    — GET `"{getPath()}"` or `"{getPath()}/{$id}"`.
- *  - {@see self::createOne()} — POST a typed body.
- *  - {@see self::update()}    — PUT a typed body to `"{getPath()}/{$id}"`.
- *  - {@see self::operation()} — POST (optionally a body) to `"{getPath()}/{$id}/{$action}"`.
- *  - {@see self::putSub()}    — PUT a typed body to `"{getPath()}/{$id}/{$sub}"`, returning the raw
- *                              decoded array (for sub-resources mapped to a class other than the
- *                              endpoint's item class, e.g. the payment link).
+ *  - {@see self::getOne()}         — GET `"{getPath()}"` or `"{getPath()}/{$id}"`.
+ *  - {@see self::createOne()}      — POST a typed body.
+ *  - {@see self::updateOne()}      — PATCH a typed body to `"{getPath()}/{$id}"`.
+ *  - {@see self::postOperation()}  — POST (optionally a body) to `"{getPath()}/{$id}/{$action}"`.
+ *  - {@see self::putSubResource()} — PUT a typed body to `"{getPath()}/{$id}/{$sub}"`, returning
+ *                                    the raw decoded array (for sub-resources mapped to a class
+ *                                    other than the endpoint's item class, e.g. the payment link).
  *
  * @template T of Resource
  */
@@ -63,7 +63,7 @@ abstract class ResourceEndpoint extends Endpoint
     /**
      * @return T
      */
-    protected function update(int|string $id, Payload $request): Resource
+    protected function updateOne(int|string $id, Payload $request): Resource
     {
         return $this->mapItem(
             static::getItemClass(),
@@ -85,7 +85,7 @@ abstract class ResourceEndpoint extends Endpoint
      *
      * @return T
      */
-    protected function operation(int|string $id, string $action, ?Payload $request = null, ?bool $synchronized = null): Resource
+    protected function postOperation(int|string $id, string $action, ?Payload $request = null, ?bool $synchronized = null): Resource
     {
         $path = sprintf('%s/%s/%s', static::getPath(), $id, $action);
         if ($synchronized ?? $this->client->isSynchronized()) {
@@ -101,7 +101,7 @@ abstract class ResourceEndpoint extends Endpoint
      *
      * @return array<array-key, mixed>
      */
-    protected function putSub(int|string $id, string $sub, Payload $request): array
+    protected function putSubResource(int|string $id, string $sub, Payload $request): array
     {
         return $this->client->put(sprintf('%s/%s/%s', static::getPath(), $id, $sub), $request);
     }

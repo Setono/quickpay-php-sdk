@@ -44,7 +44,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
      */
     public function updatePayment(int $id, UpdatePaymentRequest $request): Payment
     {
-        return $this->update($id, $request);
+        return $this->updateOne($id, $request);
     }
 
     /**
@@ -62,7 +62,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
      */
     public function authorize(int $id, AuthorizePaymentRequest $request, ?bool $synchronized = null): Payment
     {
-        return $this->operation($id, 'authorize', $request, $synchronized);
+        return $this->postOperation($id, 'authorize', $request, $synchronized);
     }
 
     /**
@@ -79,7 +79,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
      */
     public function capture(int $id, CaptureRequest $request, ?bool $synchronized = null): Payment
     {
-        return $this->operation($id, 'capture', $request, $synchronized);
+        return $this->postOperation($id, 'capture', $request, $synchronized);
     }
 
     /**
@@ -96,7 +96,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
      */
     public function refund(int $id, RefundRequest $request, ?bool $synchronized = null): Payment
     {
-        return $this->operation($id, 'refund', $request, $synchronized);
+        return $this->postOperation($id, 'refund', $request, $synchronized);
     }
 
     /**
@@ -113,7 +113,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
      */
     public function cancel(int $id, ?bool $synchronized = null): Payment
     {
-        return $this->operation($id, 'cancel', null, $synchronized);
+        return $this->postOperation($id, 'cancel', null, $synchronized);
     }
 
     /**
@@ -122,7 +122,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
      */
     public function createLink(int $id, CreateLinkRequest $request): Link
     {
-        return $this->mapItem(Link::class, $this->putSub($id, 'link', $request));
+        return $this->mapItem(Link::class, $this->putSubResource($id, 'link', $request));
     }
 
     protected static function getPath(): string

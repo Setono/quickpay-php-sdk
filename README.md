@@ -194,6 +194,32 @@ header values — e.g. `file_get_contents('php://input')`, `$_SERVER['HTTP_QUICK
 `$_SERVER['HTTP_QUICKPAY_RESOURCE_TYPE']`. This is also the one to use if your framework already
 consumed the request body. To only verify (without wrapping), use `CallbackValidator`.
 
+#### Testing your callback endpoint
+
+Don't mock `CallbackHandler` — it's `final` on purpose. Verification is deterministic and needs no
+I/O, so use a **real handler with a made-up test key** and forge authentic signatures with
+`$handler->validator()->sign()`. A mocked handler would let your controller test pass while the real
+integration breaks: the checksum is computed over the raw, byte-for-byte body, and the most common
+callback bug is a framework decoding/re-encoding or consuming that body before verification — which
+only a real round-trip catches.
+
+```php
+use Setono\Quickpay\Callback\CallbackHandler;
+use Setono\Quickpay\Enum\ResourceType;
+
+$handler = new CallbackHandler('test-private-key'); // any string works as the key in tests
+
+$body = '{"id":1234,"order_id":"order-0001","accepted":true}'; // or a captured callback fixture
+$checksum = $handler->validator()->sign($body);                // forge an authentic signature
+
+// Drive your endpoint: POST $body with the QuickPay-Checksum-Sha256 and QuickPay-Resource-Type
+// headers set (your app wired with the same test key), or call the handler directly:
+$callback = $handler->handleRaw($body, $checksum, ResourceType::Payment->value);
+
+// And pin the rejection path — a tampered body must NOT be accepted:
+$handler->handleRaw($body . 'tampered', $checksum, ResourceType::Payment->value); // throws InvalidChecksumException
+```
+
 ### Accessing fields the SDK doesn't model
 
 The SDK types the most commonly used fields; every response object also exposes the full decoded

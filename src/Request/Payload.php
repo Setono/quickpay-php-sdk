@@ -14,10 +14,14 @@ namespace Setono\Quickpay\Request;
  * filters out `null` / `[]` entries — so optional DTO properties that default to `null` are absent
  * from the produced JSON rather than serialized as `"field": null`.
  *
- * Subclasses are `final class` with **mutable** `public` promoted properties and all-optional
- * constructor arguments, so a request can be built incrementally (`new CreatePaymentRequest()`, then
- * assign fields) or in one named-argument call. There is no construction-time validation — required
- * fields are enforced by the Quickpay API (a missing one surfaces as a `ValidationException`).
+ * Subclasses are `final class` with **mutable** `public` promoted properties. Fields the Quickpay
+ * API *unconditionally* requires — verified against the live API, not just the docs — are required,
+ * non-nullable constructor arguments, so forgetting one fails at the call site (and is caught by
+ * static analysis) instead of surfacing as a `ValidationException` after a network round-trip. All
+ * other arguments are optional, so a request can be built in one named-argument call or
+ * incrementally (`new CreatePaymentRequest('order-1', 'DKK')`, then assign fields). Beyond those
+ * required arguments there is no construction-time validation — conditional requirements and format
+ * rules are enforced by the Quickpay API (a violation surfaces as a `ValidationException`).
  */
 abstract class Payload
 {

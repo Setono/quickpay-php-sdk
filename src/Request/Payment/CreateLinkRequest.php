@@ -10,7 +10,9 @@ use Setono\Quickpay\Request\Payload;
  * Body for `PUT /payments/{id}/link` — creates (or updates) the payment window link the customer is
  * redirected to.
  *
- * `amount` is required by the API (smallest currency unit). `continueUrl` / `cancelUrl` are where the
+ * `amount` (smallest currency unit) is required — verified against the live API, which rejects a
+ * link without it (`amount: "is missing"`) and accepts a link with only it. `continueUrl` /
+ * `cancelUrl` are where the
  * customer is redirected after a successful / cancelled payment; `callbackUrl` overrides the
  * account's default server-to-server callback URL for this payment. Property names are converted to
  * the snake_case keys Quickpay expects (e.g. `continueUrl` → `continue_url`); `brandingConfig` is an
@@ -22,7 +24,7 @@ final class CreateLinkRequest extends Payload
      * @param array<string, mixed> $brandingConfig
      */
     public function __construct(
-        public ?int $amount = null,
+        public int $amount,
         public ?int $agreementId = null,
         public ?string $language = null,
         public ?string $continueUrl = null,

@@ -48,11 +48,12 @@ final class PaymentsEndpoint extends CollectionEndpoint
     }
 
     /**
-     * POST `/payments/{id}/authorize`. Pass `$synchronized = true` to wait for and return the
+     * POST `/payments/{id}/authorize`. The body is required — the live API validates `amount` as
+     * required, so a request-less authorize can never succeed. Pass `$synchronized = true` to wait for and return the
      * completed transaction instead of the default asynchronous (pending) response; `null` (the
      * default) falls back to the client-wide `synchronized` flag set on the `Client` constructor.
      */
-    public function authorize(int $id, ?AuthorizePaymentRequest $request = null, ?bool $synchronized = null): Payment
+    public function authorize(int $id, AuthorizePaymentRequest $request, ?bool $synchronized = null): Payment
     {
         return $this->operation($id, 'authorize', $request, $synchronized);
     }

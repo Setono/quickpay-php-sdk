@@ -9,10 +9,9 @@ use Setono\Quickpay\Request\Payload;
 /**
  * Body for `POST /payments`.
  *
- * `orderId` and `currency` are required by the Quickpay API. Following the SDK's `Payload`
- * convention they are nullable with a `null` default (so a request can be built incrementally);
- * omitting them surfaces as a `ValidationException` from the API rather than a construction-time
- * error.
+ * `orderId` (4–20 characters) and `currency` are required — verified against the live API, which
+ * rejects a create missing either (`order_id` length validation / `currency: "is missing"`). All
+ * other fields are optional.
  */
 final class CreatePaymentRequest extends Payload
 {
@@ -21,8 +20,8 @@ final class CreatePaymentRequest extends Payload
      * @param list<BasketItem> $basket
      */
     public function __construct(
-        public ?string $orderId = null,
-        public ?string $currency = null,
+        public string $orderId,
+        public string $currency,
         public ?string $textOnStatement = null,
         public ?int $brandingId = null,
         public array $variables = [],

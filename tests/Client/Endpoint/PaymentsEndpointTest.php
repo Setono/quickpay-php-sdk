@@ -7,6 +7,7 @@ namespace Setono\Quickpay\Client\Endpoint;
 use PHPUnit\Framework\Attributes\Test;
 use Setono\Quickpay\Enum\PaymentState;
 use Setono\Quickpay\QuickpayTestCase;
+use Setono\Quickpay\Request\Payment\AuthorizePaymentRequest;
 use Setono\Quickpay\Request\Payment\CaptureRequest;
 use Setono\Quickpay\Request\Payment\CreateLinkRequest;
 use Setono\Quickpay\Request\Payment\CreatePaymentRequest;
@@ -138,15 +139,18 @@ final class PaymentsEndpointTest extends QuickpayTestCase
     }
 
     #[Test]
-    public function it_authorizes_without_a_body(): void
+    public function it_authorizes_with_an_amount_body(): void
     {
         $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234/authorize', self::fixture('payment.json'));
 
-        $this->client($http)->payments()->authorize(1234);
+        $this->client($http)->payments()->authorize(1234, new AuthorizePaymentRequest(1000));
 
         $sent = $http->sentRequests[0];
         self::assertSame(self::BASE . '/payments/1234/authorize', (string) $sent->getUri());
-        self::assertSame('', (string) $sent->getBody());
+
+        /** @var array<string, mixed> $body */
+        $body = json_decode((string) $sent->getBody(), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertSame(['amount' => 1000], $body);
     }
 
     #[Test]
@@ -201,6 +205,18 @@ final class PaymentsEndpointTest extends QuickpayTestCase
         $this->client($http)->payments()->capture(1234, new CaptureRequest(1000), synchronized: true);
 
         self::assertSame(self::BASE . '/payments/1234/capture?synchronized', (string) $http->sentRequests[0]->getUri());
+    }
+
+    #[Test]
+    public function it_sends_an_empty_json_object_for_an_empty_payload(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234', self::fixture('payment.json'));
+
+        $this->client($http)->payments()->updatePayment(1234, new UpdatePaymentRequest());
+
+        // An all-unset Payload normalizes to an empty PHP array (`[]` as JSON) — the live API
+        // rejects a JSON array body, so the client must send the empty JSON object instead.
+        self::assertSame('{}', (string) $http->sentRequests[0]->getBody());
     }
 
     #[Test]

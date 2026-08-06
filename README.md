@@ -53,6 +53,10 @@ echo $payment->state;     // "initial"
 echo $payment->state()?->name; // PaymentState enum (or null for an unknown value)
 ```
 
+Fields the Quickpay API unconditionally requires (verified against the live API) are required
+constructor arguments — `orderId` and `currency` here, `amount` on links and operations. Every other
+field is optional and simply omitted from the request JSON when unset.
+
 ### Payment link flow (redirect the customer to the payment window)
 
 The recommended way to take a payment is to create the payment, create a link for it, then redirect
@@ -211,7 +215,7 @@ use Setono\Quickpay\Exception\QuickpayException;
 use Setono\Quickpay\Exception\ValidationException;
 
 try {
-    $client->payments()->create(new CreatePaymentRequest(orderId: 'dup', currency: 'DKK'));
+    $client->payments()->create(new CreatePaymentRequest(orderId: 'dup-order-1', currency: 'DKK'));
 } catch (ValidationException $e) {
     $e->getMessageText();       // Quickpay's "message"
     $e->getErrorCode();         // Quickpay's "error_code"

@@ -308,13 +308,9 @@ final class Client implements ClientInterface
      *
      * @throws MalformedResponseException if the body is not valid JSON or does not decode to an array
      */
-    private static function decodeJson(RequestInterface $request, ResponseInterface $response, bool $allowEmpty = false): array
+    private static function decodeJson(RequestInterface $request, ResponseInterface $response): array
     {
         $body = (string) $response->getBody();
-
-        if ($allowEmpty && '' === trim($body)) {
-            return [];
-        }
 
         // Strip query + fragment so consumer-supplied secrets don't land in exception messages.
         $sanitizedUri = $request->getUri()->withQuery('')->withFragment('');

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Setono\Quickpay\Client\Endpoint;
 
+use CuyZ\Valinor\Mapper\MappingError;
 use PHPUnit\Framework\Attributes\Test;
 use Setono\Quickpay\Enum\PaymentState;
+use Setono\Quickpay\Exception\MappingException;
 use Setono\Quickpay\QuickpayTestCase;
 use Setono\Quickpay\Request\Payment\AuthorizePaymentRequest;
 use Setono\Quickpay\Request\Payment\BasketItem;
@@ -257,6 +259,52 @@ final class PaymentsEndpointTest extends QuickpayTestCase
         $this->client($http, synchronized: true)->payments()->capture(1234, new CaptureRequest(1000), synchronized: false);
 
         self::assertSame(self::BASE . '/payments/1234/capture', (string) $http->sentRequests[0]->getUri());
+    }
+
+    #[Test]
+    public function it_throws_a_mapping_exception_when_a_2xx_body_does_not_fit_the_dto(): void
+    {
+        // Valinor is strict: a single mis-typed field fails the WHOLE resource mapping (the `$raw`
+        // fallback only protects fields the SDK does not type). `id` cannot cast to int here.
+        $http = (new ScriptedHttpClient())->on(
+            self::BASE . '/payments/1234',
+            '{"id":"nope","order_id":"o-1","currency":"DKK","state":"new","merchant_id":1}',
+        );
+
+        try {
+            $this->client($http)->payments()->getById(1234);
+            self::fail('Expected a MappingException.');
+        } catch (MappingException $e) {
+            self::assertStringContainsString('Could not map response body to', $e->getMessage());
+            self::assertStringContainsString('[GET https://api.quickpay.net/payments/1234]', $e->getMessage());
+            self::assertInstanceOf(MappingError::class, $e->getPrevious());
+        }
+    }
+
+    #[Test]
+    public function it_maps_both_supported_date_formats(): void
+    {
+        $http = (new ScriptedHttpClient())->on(
+            self::BASE . '/payments/1234',
+            '{"id":1234,"order_id":"o-1","currency":"DKK","state":"new","merchant_id":1,'
+            . '"created_at":"2018-10-17T13:25:44Z","updated_at":"2018-10-17T13:25:44.557Z"}',
+        );
+
+        $payment = $this->client($http)->payments()->getById(1234);
+
+        self::assertSame('2018-10-17 13:25:44 +00:00', $payment->createdAt?->format('Y-m-d H:i:s P'));
+        self::assertSame('2018-10-17 13:25:44.557000', $payment->updatedAt?->format('Y-m-d H:i:s.u'));
+    }
+
+    #[Test]
+    public function it_maps_a_202_accepted_operation_response(): void
+    {
+        // Async operations answer 202 Accepted; the body is still the full payment resource.
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234/capture', self::fixture('payment.json'), 202);
+
+        $payment = $this->client($http)->payments()->capture(1234, new CaptureRequest(1000));
+
+        self::assertSame(1234, $payment->id);
     }
 
     #[Test]

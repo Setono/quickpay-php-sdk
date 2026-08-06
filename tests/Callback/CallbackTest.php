@@ -176,7 +176,10 @@ final class CallbackTest extends QuickpayTestCase
         self::assertFalse($callback->isPayment());
         self::assertSame(['id' => 42, 'state' => 'active'], $callback->toArray());
 
+        // Assert the MESSAGE too: without it, removing the type guard would still end in an
+        // InvalidCallbackException via the shape-mismatch path and the guard would go untested.
         $this->expectException(InvalidCallbackException::class);
+        $this->expectExceptionMessage('not a payment');
         $callback->payment();
     }
 

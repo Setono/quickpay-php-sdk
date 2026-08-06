@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Setono\Quickpay\Client;
 
+use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Setono\Quickpay\Exception\ConflictException;
@@ -139,6 +140,66 @@ final class ClientTest extends QuickpayTestCase
         yield '500' => [500, InternalServerErrorException::class];
         yield '503' => [503, InternalServerErrorException::class];
         yield '418' => [418, UnexpectedStatusCodeException::class];
+        yield '302' => [302, UnexpectedStatusCodeException::class];
+    }
+
+    #[Test]
+    public function it_throws_when_the_body_is_valid_json_but_not_an_array(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/ping', '"pong"');
+
+        $this->expectException(MalformedResponseException::class);
+        $this->expectExceptionMessage('Expected decoded response body to be an array but got string');
+
+        $this->client($http)->ping();
+    }
+
+    #[Test]
+    public function it_does_not_set_a_content_type_on_get_requests(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/ping', self::fixture('ping.json'));
+
+        $this->client($http)->ping();
+
+        self::assertFalse($http->sentRequests[0]->hasHeader('Content-Type'));
+    }
+
+    #[Test]
+    public function it_preserves_a_preset_content_type(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/ping', self::fixture('ping.json'));
+
+        $request = (new Psr17Factory())->createRequest('POST', self::BASE . '/ping')
+            ->withHeader('Content-Type', 'application/custom+json');
+        $this->client($http)->request($request);
+
+        self::assertSame('application/custom+json', $http->sentRequests[0]->getHeaderLine('Content-Type'));
+    }
+
+    #[Test]
+    public function it_allows_an_absolute_url_regardless_of_casing(): void
+    {
+        // RFC 3986 hosts are case-insensitive — the host-pinning guard must not reject the
+        // Quickpay host just because it is written in upper case, and the port guard must resolve
+        // the default port from the lowercased SCHEME too. (The PSR-7 implementation then
+        // normalizes scheme + host to lower case and drops the default port on the wire.)
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/ping', self::fixture('ping.json'));
+
+        $this->client($http)->get('HTTPS://API.QUICKPAY.NET:443/ping');
+
+        self::assertSame(self::BASE . '/ping', (string) $http->sentRequests[0]->getUri());
+    }
+
+    #[Test]
+    public function it_allows_an_explicit_default_port_on_the_api_host(): void
+    {
+        // An explicit :443 matches the https default, so the port guard must not reject it. (The
+        // PSR-7 implementation then drops the redundant default port on the wire.)
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/ping', self::fixture('ping.json'));
+
+        $this->client($http)->get(self::BASE . ':443/ping');
+
+        self::assertSame(self::BASE . '/ping', (string) $http->sentRequests[0]->getUri());
     }
 
     #[Test]

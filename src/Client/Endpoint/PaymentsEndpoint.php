@@ -40,7 +40,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
     }
 
     /**
-     * PUT `/payments/{id}`.
+     * PATCH `/payments/{id}`.
      */
     public function updatePayment(int $id, UpdatePaymentRequest $request): Payment
     {

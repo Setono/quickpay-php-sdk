@@ -52,6 +52,13 @@ final class PaymentsEndpoint extends CollectionEndpoint
      * required, so a request-less authorize can never succeed. Pass `$synchronized = true` to wait for and return the
      * completed transaction instead of the default asynchronous (pending) response; `null` (the
      * default) falls back to the client-wide `synchronized` flag set on the `Client` constructor.
+     *
+     * When run asynchronously the API answers `202 Accepted` and the returned {@see Payment} is only
+     * a snapshot taken when the operation was QUEUED: the new operation has `pending: true` and no
+     * `qpStatusCode` yet, and fields such as `state` and `balance` still hold their pre-operation
+     * values — they say nothing about the outcome. Confirm the result via the callback, or by
+     * re-fetching with {@see self::getById()} until the operation's `pending` is `false` (then a
+     * `qpStatusCode` of `"20000"` means approved).
      */
     public function authorize(int $id, AuthorizePaymentRequest $request, ?bool $synchronized = null): Payment
     {
@@ -62,6 +69,13 @@ final class PaymentsEndpoint extends CollectionEndpoint
      * POST `/payments/{id}/capture`. Pass `$synchronized = true` to wait for and return the completed
      * transaction instead of the default asynchronous (pending) response; `null` (the default) falls
      * back to the client-wide `synchronized` flag set on the `Client` constructor.
+     *
+     * When run asynchronously the API answers `202 Accepted` and the returned {@see Payment} is only
+     * a snapshot taken when the operation was QUEUED: the new operation has `pending: true` and no
+     * `qpStatusCode` yet, and fields such as `state` and `balance` still hold their pre-operation
+     * values — they say nothing about the outcome. Confirm the result via the callback, or by
+     * re-fetching with {@see self::getById()} until the operation's `pending` is `false` (then a
+     * `qpStatusCode` of `"20000"` means approved).
      */
     public function capture(int $id, CaptureRequest $request, ?bool $synchronized = null): Payment
     {
@@ -72,6 +86,13 @@ final class PaymentsEndpoint extends CollectionEndpoint
      * POST `/payments/{id}/refund`. Pass `$synchronized = true` to wait for and return the completed
      * transaction instead of the default asynchronous (pending) response; `null` (the default) falls
      * back to the client-wide `synchronized` flag set on the `Client` constructor.
+     *
+     * When run asynchronously the API answers `202 Accepted` and the returned {@see Payment} is only
+     * a snapshot taken when the operation was QUEUED: the new operation has `pending: true` and no
+     * `qpStatusCode` yet, and fields such as `state` and `balance` still hold their pre-operation
+     * values — they say nothing about the outcome. Confirm the result via the callback, or by
+     * re-fetching with {@see self::getById()} until the operation's `pending` is `false` (then a
+     * `qpStatusCode` of `"20000"` means approved).
      */
     public function refund(int $id, RefundRequest $request, ?bool $synchronized = null): Payment
     {
@@ -82,6 +103,13 @@ final class PaymentsEndpoint extends CollectionEndpoint
      * POST `/payments/{id}/cancel`. Pass `$synchronized = true` to wait for and return the completed
      * transaction instead of the default asynchronous (pending) response; `null` (the default) falls
      * back to the client-wide `synchronized` flag set on the `Client` constructor.
+     *
+     * When run asynchronously the API answers `202 Accepted` and the returned {@see Payment} is only
+     * a snapshot taken when the operation was QUEUED: the new operation has `pending: true` and no
+     * `qpStatusCode` yet, and fields such as `state` still hold their pre-operation values — they
+     * say nothing about the outcome. Confirm the result via the callback, or by re-fetching with
+     * {@see self::getById()} until the operation's `pending` is `false` (then a `qpStatusCode` of
+     * `"20000"` means approved).
      */
     public function cancel(int $id, ?bool $synchronized = null): Payment
     {

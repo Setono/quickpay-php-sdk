@@ -76,10 +76,12 @@ abstract class ResourceEndpoint extends Endpoint
      * returned resource. The `$request` body is optional — operations such as cancel take no body.
      *
      * Quickpay processes operations asynchronously by default and returns a `202 Accepted` with the
-     * operation still pending. Pass `$synchronized = true` to add the `?synchronized` flag, which
-     * makes Quickpay wait and return the completed transaction (its final state) instead. When
-     * `$synchronized` is `null` the client-wide default ({@see \Setono\Quickpay\Client\ClientInterface::isSynchronized()})
-     * applies.
+     * operation still pending — the 202 body is the full resource, but only a snapshot taken when
+     * the operation was queued (the new operation has `pending: true` and no status code yet; the
+     * resource's other fields still hold their pre-operation values). Pass `$synchronized = true` to
+     * add the `?synchronized` flag, which makes Quickpay wait and return the completed transaction
+     * (its final state) instead. When `$synchronized` is `null` the client-wide default
+     * ({@see \Setono\Quickpay\Client\ClientInterface::isSynchronized()}) applies.
      *
      * @return T
      */

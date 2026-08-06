@@ -10,7 +10,8 @@ use Setono\Quickpay\Request\Payload;
  * Body for `POST /payments/{id}/authorize`.
  *
  * `amount` (smallest currency unit) is required — verified against the live API, which rejects an
- * authorize without it (`body: "is invalid"`). Authorizing directly via the API generally requires
+ * authorize without it (`amount: "is missing"`, probed with card data supplied so validation is
+ * actually reached). Authorizing directly via the API generally requires
  * you to supply card data via `$card` (e.g. `['number' => ..., 'expiration' => ..., 'cvd' => ...]`,
  * or a `token`/wallet token) — which puts you in PCI scope. Most integrations instead authorize
  * through the hosted payment window; see

@@ -208,6 +208,18 @@ final class PaymentsEndpointTest extends QuickpayTestCase
     }
 
     #[Test]
+    public function it_sends_an_empty_json_object_for_an_empty_payload(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234', self::fixture('payment.json'));
+
+        $this->client($http)->payments()->updatePayment(1234, new UpdatePaymentRequest());
+
+        // An all-unset Payload normalizes to an empty PHP array (`[]` as JSON) — the live API
+        // rejects a JSON array body, so the client must send the empty JSON object instead.
+        self::assertSame('{}', (string) $http->sentRequests[0]->getBody());
+    }
+
+    #[Test]
     public function it_uses_the_client_wide_synchronized_default(): void
     {
         $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234/capture?synchronized', self::fixture('payment.json'));

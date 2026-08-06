@@ -219,11 +219,16 @@ final class Client implements ClientInterface
         $request = $this->requestFactory->createRequest($method, $this->resolveUrl($uri));
 
         if (null !== $body) {
-            $request = $request->withBody(
-                $this->streamFactory->createStream(
-                    $this->normalizerBuilder->normalizer(Format::json())->normalize($body),
-                ),
-            );
+            $json = $this->normalizerBuilder->normalizer(Format::json())->normalize($body);
+
+            // A Payload whose optional fields are all unset normalizes to an empty PHP array, which
+            // JSON-encodes as `[]` — the Quickpay API rejects that shape (`body: "is invalid"`); an
+            // empty body must be the empty JSON object.
+            if ('[]' === $json) {
+                $json = '{}';
+            }
+
+            $request = $request->withBody($this->streamFactory->createStream($json));
         }
 
         return self::decodeJson($request, $this->request($request));

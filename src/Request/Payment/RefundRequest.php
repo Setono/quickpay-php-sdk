@@ -10,8 +10,9 @@ use Setono\Quickpay\Request\Payload;
  * Body for `POST /payments/{id}/refund`.
  *
  * `amount` is the amount to refund, in the payment's currency expressed in the smallest unit
- * (e.g. cents/øre). It is required — verified against the live API, which rejects a refund without
- * it (`body: "is invalid"`) before even checking the transaction state. `vatRate` optionally states
+ * (e.g. cents/øre). It is required — verified against the live API: a refund without it on a
+ * CAPTURED payment (positive balance) is rejected with `amount: "is missing"`; the API does NOT
+ * fall back to refunding the remaining balance. `vatRate` optionally states
  * the VAT rate of the refunded amount. `extras` is the API's optional hash of acquirer-specific
  * extra parameters; its keys are passed through verbatim.
  */

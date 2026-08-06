@@ -49,36 +49,40 @@ final class PaymentsEndpoint extends CollectionEndpoint
 
     /**
      * POST `/payments/{id}/authorize`. Pass `$synchronized = true` to wait for and return the
-     * completed transaction instead of the default asynchronous (pending) response.
+     * completed transaction instead of the default asynchronous (pending) response; `null` (the
+     * default) falls back to the client-wide `synchronized` flag set on the `Client` constructor.
      */
-    public function authorize(int $id, ?AuthorizePaymentRequest $request = null, bool $synchronized = false): Payment
+    public function authorize(int $id, ?AuthorizePaymentRequest $request = null, ?bool $synchronized = null): Payment
     {
         return $this->operation($id, 'authorize', $request, $synchronized);
     }
 
     /**
      * POST `/payments/{id}/capture`. Pass `$synchronized = true` to wait for and return the completed
-     * transaction instead of the default asynchronous (pending) response.
+     * transaction instead of the default asynchronous (pending) response; `null` (the default) falls
+     * back to the client-wide `synchronized` flag set on the `Client` constructor.
      */
-    public function capture(int $id, CaptureRequest $request, bool $synchronized = false): Payment
+    public function capture(int $id, CaptureRequest $request, ?bool $synchronized = null): Payment
     {
         return $this->operation($id, 'capture', $request, $synchronized);
     }
 
     /**
      * POST `/payments/{id}/refund`. Pass `$synchronized = true` to wait for and return the completed
-     * transaction instead of the default asynchronous (pending) response.
+     * transaction instead of the default asynchronous (pending) response; `null` (the default) falls
+     * back to the client-wide `synchronized` flag set on the `Client` constructor.
      */
-    public function refund(int $id, RefundRequest $request, bool $synchronized = false): Payment
+    public function refund(int $id, RefundRequest $request, ?bool $synchronized = null): Payment
     {
         return $this->operation($id, 'refund', $request, $synchronized);
     }
 
     /**
      * POST `/payments/{id}/cancel`. Pass `$synchronized = true` to wait for and return the completed
-     * transaction instead of the default asynchronous (pending) response.
+     * transaction instead of the default asynchronous (pending) response; `null` (the default) falls
+     * back to the client-wide `synchronized` flag set on the `Client` constructor.
      */
-    public function cancel(int $id, bool $synchronized = false): Payment
+    public function cancel(int $id, ?bool $synchronized = null): Payment
     {
         return $this->operation($id, 'cancel', null, $synchronized);
     }

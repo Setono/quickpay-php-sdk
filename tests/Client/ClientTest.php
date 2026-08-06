@@ -70,6 +70,18 @@ final class ClientTest extends QuickpayTestCase
     }
 
     #[Test]
+    public function it_is_not_synchronized_by_default(): void
+    {
+        self::assertFalse($this->client(new ScriptedHttpClient())->isSynchronized());
+    }
+
+    #[Test]
+    public function it_exposes_the_synchronized_flag_given_to_the_constructor(): void
+    {
+        self::assertTrue($this->client(new ScriptedHttpClient(), synchronized: true)->isSynchronized());
+    }
+
+    #[Test]
     public function it_has_no_last_request_or_response_before_dispatching(): void
     {
         $client = $this->client(new ScriptedHttpClient());

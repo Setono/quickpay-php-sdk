@@ -204,6 +204,26 @@ final class PaymentsEndpointTest extends QuickpayTestCase
     }
 
     #[Test]
+    public function it_uses_the_client_wide_synchronized_default(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234/capture?synchronized', self::fixture('payment.json'));
+
+        $this->client($http, synchronized: true)->payments()->capture(1234, new CaptureRequest(1000));
+
+        self::assertSame(self::BASE . '/payments/1234/capture?synchronized', (string) $http->sentRequests[0]->getUri());
+    }
+
+    #[Test]
+    public function it_overrides_the_client_wide_synchronized_default_per_call(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234/capture', self::fixture('payment.json'));
+
+        $this->client($http, synchronized: true)->payments()->capture(1234, new CaptureRequest(1000), synchronized: false);
+
+        self::assertSame(self::BASE . '/payments/1234/capture', (string) $http->sentRequests[0]->getUri());
+    }
+
+    #[Test]
     public function it_lists_payments(): void
     {
         $http = (new ScriptedHttpClient())->on(

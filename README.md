@@ -94,6 +94,16 @@ pending operation. Pass `synchronized: true` to wait for and receive the complet
 $payment = $client->payments()->capture($payment->id, new CaptureRequest(1000), synchronized: true);
 ```
 
+If your integration always (or never) wants to wait, set the default once on the client instead of
+repeating the flag on every call — a non-null per-call `synchronized:` argument still overrides it:
+
+```php
+$client = new Client('YOUR_API_KEY', synchronized: true);
+
+$client->payments()->capture($payment->id, new CaptureRequest(1000)); // waits (client default)
+$client->payments()->refund($payment->id, new RefundRequest(250), synchronized: false); // fire-and-forget
+```
+
 ### Updating a payment
 
 Before a payment is authorized you can update some of its fields (`PATCH /payments/{id}`). Note the

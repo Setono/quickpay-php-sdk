@@ -15,11 +15,25 @@ abstract class QuickpayTestCase extends TestCase
 
     protected const API_KEY = 'apikey';
 
-    protected function client(ScriptedHttpClient $http): Client
+    /**
+     * @param bool|null $synchronized when `null` the `Client` constructor default is used, so tests
+     *        without an explicit flag exercise the real default
+     */
+    protected function client(ScriptedHttpClient $http, ?bool $synchronized = null): Client
     {
         $psr17 = new Psr17Factory();
 
-        return new Client(self::API_KEY, httpClient: $http, requestFactory: $psr17, streamFactory: $psr17);
+        if (null === $synchronized) {
+            return new Client(self::API_KEY, httpClient: $http, requestFactory: $psr17, streamFactory: $psr17);
+        }
+
+        return new Client(
+            self::API_KEY,
+            httpClient: $http,
+            requestFactory: $psr17,
+            streamFactory: $psr17,
+            synchronized: $synchronized,
+        );
     }
 
     /**

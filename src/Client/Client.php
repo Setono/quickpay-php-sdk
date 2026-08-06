@@ -53,6 +53,11 @@ final class Client implements ClientInterface
 
     private readonly NormalizerBuilder $normalizerBuilder;
 
+    /**
+     * @param bool $synchronized the client-wide default for the `$synchronized` flag on the payment
+     *        operation methods (authorize/capture/refund/cancel); a non-null per-call argument
+     *        overrides it
+     */
     public function __construct(
         private readonly string $apiKey,
         ?HttpClientInterface $httpClient = null,
@@ -60,12 +65,18 @@ final class Client implements ClientInterface
         ?StreamFactoryInterface $streamFactory = null,
         ?MapperBuilder $mapperBuilder = null,
         ?NormalizerBuilder $normalizerBuilder = null,
+        private readonly bool $synchronized = false,
     ) {
         $this->httpClient = $httpClient ?? Psr18ClientDiscovery::find();
         $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
         $this->mapperBuilder = $mapperBuilder ?? self::defaultMapperBuilder();
         $this->normalizerBuilder = $normalizerBuilder ?? self::defaultNormalizerBuilder();
+    }
+
+    public function isSynchronized(): bool
+    {
+        return $this->synchronized;
     }
 
     public function getLastRequest(): ?RequestInterface

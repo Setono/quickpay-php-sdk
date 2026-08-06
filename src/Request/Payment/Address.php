@@ -9,6 +9,9 @@ use Setono\Quickpay\Request\Payload;
 /**
  * An invoice or shipping address attached to a payment. Sent as a nested object; property names are
  * converted to the snake_case keys Quickpay expects (e.g. `zipCode` → `zip_code`).
+ *
+ * All fields are genuinely optional — verified against the live API, which accepts a partial
+ * address (e.g. only `name`) and stores the omitted fields as `null`.
  */
 final class Address extends Payload
 {

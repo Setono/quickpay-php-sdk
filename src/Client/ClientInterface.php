@@ -14,6 +14,13 @@ use Setono\Quickpay\Request\Payload;
 interface ClientInterface
 {
     /**
+     * The client-wide default for the `$synchronized` flag on the payment operation methods
+     * (authorize/capture/refund/cancel). When an operation method is called with
+     * `$synchronized = null` this default decides whether `?synchronized` is appended.
+     */
+    public function isSynchronized(): bool;
+
+    /**
      * The last request sent to the API, or `null` if no request has been dispatched yet.
      */
     public function getLastRequest(): ?RequestInterface;

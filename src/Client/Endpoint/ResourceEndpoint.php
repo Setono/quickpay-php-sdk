@@ -77,14 +77,16 @@ abstract class ResourceEndpoint extends Endpoint
      *
      * Quickpay processes operations asynchronously by default and returns a `202 Accepted` with the
      * operation still pending. Pass `$synchronized = true` to add the `?synchronized` flag, which
-     * makes Quickpay wait and return the completed transaction (its final state) instead.
+     * makes Quickpay wait and return the completed transaction (its final state) instead. When
+     * `$synchronized` is `null` the client-wide default ({@see \Setono\Quickpay\Client\ClientInterface::isSynchronized()})
+     * applies.
      *
      * @return T
      */
-    protected function operation(int|string $id, string $action, ?Payload $request = null, bool $synchronized = false): Resource
+    protected function operation(int|string $id, string $action, ?Payload $request = null, ?bool $synchronized = null): Resource
     {
         $path = sprintf('%s/%s/%s', static::getPath(), $id, $action);
-        if ($synchronized) {
+        if ($synchronized ?? $this->client->isSynchronized()) {
             $path .= '?synchronized';
         }
 

@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\Test;
 use Setono\Quickpay\Enum\PaymentState;
 use Setono\Quickpay\QuickpayTestCase;
 use Setono\Quickpay\Request\Payment\AuthorizePaymentRequest;
+use Setono\Quickpay\Request\Payment\BasketItem;
 use Setono\Quickpay\Request\Payment\CaptureRequest;
 use Setono\Quickpay\Request\Payment\CreateLinkRequest;
 use Setono\Quickpay\Request\Payment\CreatePaymentRequest;
@@ -205,6 +206,25 @@ final class PaymentsEndpointTest extends QuickpayTestCase
         $this->client($http)->payments()->capture(1234, new CaptureRequest(1000), synchronized: true);
 
         self::assertSame(self::BASE . '/payments/1234/capture?synchronized', (string) $http->sentRequests[0]->getUri());
+    }
+
+    #[Test]
+    public function it_serializes_basket_items_as_a_list_of_snake_case_objects(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/payments', self::fixture('payment.json'));
+
+        $request = new CreatePaymentRequest('order-0001', 'DKK');
+        $request->basket = [new BasketItem(qty: 2, itemNo: 'sku-1', itemName: 'Widget', itemPrice: 500, vatRate: 0.25)];
+        $this->client($http)->payments()->create($request);
+
+        /** @var array<string, mixed> $body */
+        $body = json_decode((string) $http->sentRequests[0]->getBody(), true, flags: \JSON_THROW_ON_ERROR);
+        // The basket must stay a JSON LIST of complete snake_cased objects — the live API rejects
+        // partial items and 500s on `[]`-shaped ones.
+        self::assertSame(
+            [['qty' => 2, 'item_no' => 'sku-1', 'item_name' => 'Widget', 'item_price' => 500, 'vat_rate' => 0.25]],
+            $body['basket'],
+        );
     }
 
     #[Test]

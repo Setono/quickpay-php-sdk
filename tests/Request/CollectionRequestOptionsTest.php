@@ -42,7 +42,7 @@ final class CollectionRequestOptionsTest extends TestCase
     #[Test]
     public function it_builds_modified_copies_immutably(): void
     {
-        $opts = CollectionRequestOptions::new();
+        $opts = new CollectionRequestOptions();
 
         self::assertSame(1, $opts->page);
         self::assertSame(20, $opts->pageSize);

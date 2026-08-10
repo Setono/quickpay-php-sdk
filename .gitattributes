@@ -1,11 +1,14 @@
 /.editorconfig                  export-ignore
+/.env.local.example             export-ignore
 /.gitattributes                 export-ignore
 /.github                        export-ignore
 /.gitignore                     export-ignore
+/CLAUDE.md                      export-ignore
 /README.md                      export-ignore
 /UPGRADE.md                     export-ignore
 /composer-dependency-analyser.php export-ignore
 /ecs.php                        export-ignore
+/examples                       export-ignore
 /infection.json.dist            export-ignore
 /phpstan.neon.dist              export-ignore
 /phpunit.xml.dist               export-ignore

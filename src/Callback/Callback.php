@@ -23,7 +23,7 @@ use Setono\Quickpay\Response\Payment\Payment;
  * The body is NOT assumed to be a payment: check {@see self::$type} / {@see self::isPayment()} and only
  * call {@see self::payment()} when it is a payment. Use {@see self::toArray()} for any resource type.
  *
- * Instances are produced by {@see CallbackHandler::handle()} / {@see CallbackHandler::handleRequest()}.
+ * Instances are produced by {@see CallbackHandler::handle()} / {@see CallbackHandler::handleRaw()}.
  */
 final class Callback
 {

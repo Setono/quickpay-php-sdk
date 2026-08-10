@@ -43,7 +43,8 @@ final class LiveClientTest extends TestCase
         $client = $this->liveClient();
 
         $payment = $client->payments()->create(new CreatePaymentRequest(
-            orderId: 'sdk-probe-' . bin2hex(random_bytes(6)),
+            // Quickpay limits order_id to 4-20 characters; 'probe-' + 12 hex chars = 18.
+            orderId: 'probe-' . bin2hex(random_bytes(6)),
             currency: 'DKK',
         ));
         self::assertGreaterThan(0, $payment->id);

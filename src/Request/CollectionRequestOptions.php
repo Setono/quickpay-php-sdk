@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Setono\Quickpay\Request;
 
-use Webmozart\Assert\Assert;
-
 /**
  * Immutable options for a paginated list request: which page and how many entries per page.
  *
@@ -19,13 +17,13 @@ final class CollectionRequestOptions
         public readonly int $page = 1,
         public readonly int $pageSize = 20,
     ) {
-        Assert::greaterThanEq($page, 1);
-        Assert::greaterThanEq($pageSize, 1);
-    }
+        if ($page < 1) {
+            throw new \InvalidArgumentException(sprintf('Expected $page to be at least 1, got %d.', $page));
+        }
 
-    public static function new(): self
-    {
-        return new self();
+        if ($pageSize < 1) {
+            throw new \InvalidArgumentException(sprintf('Expected $pageSize to be at least 1, got %d.', $pageSize));
+        }
     }
 
     public function withPage(int $page): self

@@ -38,6 +38,17 @@ final class PaymentsEndpointTest extends QuickpayTestCase
         // Untyped fields are reachable via the original snake_case keys.
         self::assertSame('order-0001', $payment->raw['order_id']);
         self::assertSame('Example Shop', $payment->raw['text_on_statement']);
+
+        // The result helpers work on the mapped operations (authorize 1000 + capture 1000, both approved).
+        self::assertSame(1000, $payment->authorizedAmount());
+        self::assertSame(1000, $payment->capturedAmount());
+        self::assertSame(0, $payment->refundedAmount());
+        self::assertFalse($payment->isCancelled());
+        self::assertFalse($payment->hasPendingOperation());
+        $latest = $payment->latestOperation();
+        self::assertNotNull($latest);
+        self::assertSame(2, $latest->id);
+        self::assertTrue($latest->isApproved());
     }
 
     #[Test]

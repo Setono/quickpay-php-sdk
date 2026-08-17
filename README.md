@@ -108,6 +108,35 @@ $client->payments()->capture($payment->id, new CaptureRequest(1000)); // waits (
 $client->payments()->refund($payment->id, new RefundRequest(250), synchronized: false); // fire-and-forget
 ```
 
+### Reading what happened to a payment
+
+Everything that happened to a payment is recorded in its `operations` (authorize, capture, refund,
+cancel, …), each with a `pending` flag and Quickpay's `qp_status_code` (`"20000"` = approved).
+`Payment` and `Operation` have helpers so you don't have to hand-roll that inspection:
+
+```php
+$payment = $client->payments()->getById(1234);
+
+$payment->accepted;            // Quickpay's own flag: the authorization was accepted by the acquirer
+$payment->authorizedAmount();  // sum of approved authorize operations (0 if never authorized)
+$payment->capturedAmount();    // sum of approved captures
+$payment->refundedAmount();    // sum of approved refunds
+$payment->isCancelled();       // an approved cancel exists
+$payment->hasPendingOperation(); // something is still being processed — don't read the outcome yet
+
+$latest = $payment->latestOperation();  // ?Operation — highest id, i.e. the most recent one
+$latest?->isApproved();                 // completed with qp_status_code 20000
+$latest?->type();                       // OperationType enum (or null for an unknown value)
+
+$payment->operation(3);                            // ?Operation by id
+$payment->operationsOfType(OperationType::Capture); // list<Operation>
+```
+
+Only **approved** operations count towards the amounts — pending or rejected ones don't. When an
+operation was run asynchronously (the default), poll `getById()` or wait for the callback until
+`hasPendingOperation()` is `false` before trusting the amounts. Operation ids are numbered per
+payment (`1`, `2`, …), which makes them a good idempotency key when handling callbacks.
+
 ### Updating a payment
 
 Before a payment is authorized you can update some of its fields (`PATCH /payments/{id}`). Note the

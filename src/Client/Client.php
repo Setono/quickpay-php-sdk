@@ -373,15 +373,13 @@ final class Client implements ClientInterface
 
     /**
      * The installed version of this package (`dev-1.x` etc. for a source checkout), or `unknown`
-     * when it is not installed through Composer.
+     * when Composer does not know about it (a vendored copy, a phar).
      */
     public static function version(): string
     {
-        try {
-            return InstalledVersions::getPrettyVersion('setono/quickpay-php-sdk') ?? 'unknown';
-        } catch (\OutOfBoundsException) {
-            return 'unknown';
-        }
+        $package = 'setono/quickpay-php-sdk';
+
+        return InstalledVersions::isInstalled($package) ? (InstalledVersions::getPrettyVersion($package) ?? 'unknown') : 'unknown';
     }
 
     private static function camelToSnake(string $key): string

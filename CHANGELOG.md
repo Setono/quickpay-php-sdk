@@ -9,7 +9,10 @@ narrative.
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-08-17
+
 Developer-experience follow-ups from the v1.0.0 review ([#10](https://github.com/Setono/quickpay-php-sdk/issues/10)).
+All additive; see "BC notes" for the two things that could touch unusual code.
 
 ### Added
 
@@ -21,9 +24,9 @@ Developer-experience follow-ups from the v1.0.0 review ([#10](https://github.com
   `Payment::operation()`, `latestOperation()`, `operationsOfType()`, `hasPendingOperation()`,
   `authorizedAmount()`, `capturedAmount()`, `refundedAmount()`, `isCancelled()`
   ([#13](https://github.com/Setono/quickpay-php-sdk/pull/13)).
-- `Client::delete()`, plain-array bodies on `post()`/`put()`/`patch()`, and
-  `PaymentsEndpoint::deleteLink()`; a `204 No Content` response decodes to `[]`
-  ([#14](https://github.com/Setono/quickpay-php-sdk/pull/14)).
+- `Client::delete()`, plain-array bodies on `post()`/`put()`/`patch()` (`Payload|array $body = []`
+  — never null; an empty body is sent as `{}`), and `PaymentsEndpoint::deleteLink()`; a
+  `204 No Content` response decodes to `[]` ([#14](https://github.com/Setono/quickpay-php-sdk/pull/14)).
 - `cache:` constructor argument on `Client` and `CallbackHandler`; `Client::defaultMapperBuilder()` /
   `defaultNormalizerBuilder()` are public ([#16](https://github.com/Setono/quickpay-php-sdk/pull/16)).
 - `CallbackHandler::handleGlobals()`; `handleRaw()` accepts the optional `accountId` / `apiVersion`
@@ -55,8 +58,9 @@ Developer-experience follow-ups from the v1.0.0 review ([#10](https://github.com
 
 ### Changed
 
-- `CollectionRequestOptions` is no longer `final` (so `PaymentsQuery` can extend it)
-  ([#12](https://github.com/Setono/quickpay-php-sdk/pull/12)).
+- `CollectionRequestOptions` is no longer `final` (so `PaymentsQuery` can extend it); its withers
+  clone, and `page`/`pageSize` are plain public properties (a readonly property cannot be
+  reinitialized during clone before PHP 8.3) ([#12](https://github.com/Setono/quickpay-php-sdk/pull/12)).
 - `Callback::payment()` is memoized ([#19](https://github.com/Setono/quickpay-php-sdk/pull/19)).
 - `README.md` and `UPGRADE.md` are shipped in the dist again
   ([#21](https://github.com/Setono/quickpay-php-sdk/pull/21)).
@@ -71,8 +75,9 @@ Developer-experience follow-ups from the v1.0.0 review ([#10](https://github.com
 
 ### BC notes
 
-- `ClientInterface` gains `delete()` and wider `$body` types on `post()`/`put()`/`patch()` — a
-  change only for code that *implements* the interface ([#14](https://github.com/Setono/quickpay-php-sdk/pull/14)).
+- `ClientInterface` gains `delete()`, and `post()`/`put()`/`patch()` take `Payload|array $body = []`
+  instead of `?Payload $body = null` — a change only for code that *implements* the interface, or
+  that passed an explicit `null` body (pass nothing, or `[]`) ([#14](https://github.com/Setono/quickpay-php-sdk/pull/14)).
 - Code that caught `Psr\Http\Client\NetworkExceptionInterface` / `RequestExceptionInterface`
   *specifically* should catch `TransportException` (or `ClientExceptionInterface`) and inspect
   `getPrevious()` / `isNetworkError()` ([#18](https://github.com/Setono/quickpay-php-sdk/pull/18)).
@@ -155,7 +160,8 @@ First alpha: payments (create/get/list/update/authorize/capture/refund/cancel), 
 link flow, signed callback verification, `/ping`, typed DTOs with a `$raw` fallback, a typed
 exception hierarchy under `QuickpayException`, and host pinning.
 
-[Unreleased]: https://github.com/Setono/quickpay-php-sdk/compare/v1.0.0...1.x
+[Unreleased]: https://github.com/Setono/quickpay-php-sdk/compare/v1.1.0...1.x
+[1.1.0]: https://github.com/Setono/quickpay-php-sdk/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Setono/quickpay-php-sdk/compare/v1.0.0-beta.2...v1.0.0
 [1.0.0-beta.2]: https://github.com/Setono/quickpay-php-sdk/compare/v1.0.0-beta.1...v1.0.0-beta.2
 [1.0.0-beta.1]: https://github.com/Setono/quickpay-php-sdk/compare/v1.0.0-alpha.4...v1.0.0-beta.1

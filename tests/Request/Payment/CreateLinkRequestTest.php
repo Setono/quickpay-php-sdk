@@ -29,14 +29,13 @@ final class CreateLinkRequestTest extends TestCase
     {
         self::assertNull((new CreateLinkRequest(amount: 1000, paymentMethods: []))->paymentMethods);
         self::assertNull((new CreateLinkRequest(amount: 1000))->paymentMethods);
-        self::assertNull(CreateLinkRequest::joinPaymentMethods(null));
     }
 
     #[Test]
     public function the_property_stays_a_plain_string_that_can_be_reassigned(): void
     {
         $request = new CreateLinkRequest(amount: 1000, paymentMethods: ['visa']);
-        $request->paymentMethods = CreateLinkRequest::joinPaymentMethods(['visa', 'mastercard']);
+        $request->paymentMethods = 'visa,mastercard';
 
         self::assertSame('visa,mastercard', $request->paymentMethods);
     }

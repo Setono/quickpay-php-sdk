@@ -69,7 +69,7 @@ final class CreateLinkRequest extends Payload
      *
      * @param string|list<string>|null $paymentMethods
      */
-    public static function joinPaymentMethods(string|array|null $paymentMethods): ?string
+    private static function joinPaymentMethods(string|array|null $paymentMethods): ?string
     {
         if (is_array($paymentMethods)) {
             return [] === $paymentMethods ? null : implode(',', $paymentMethods);

@@ -12,40 +12,49 @@ namespace Setono\Quickpay\Request;
  * parameters.
  *
  * Resource-specific subclasses add typed filters on top — e.g.
- * {@see \Setono\Quickpay\Request\Payment\PaymentsQuery} for `GET /payments` — merging them into
- * {@see toArray()} and overriding {@see withPage()} / {@see withPageSize()} so the filters are
- * carried along while paginating. Subclassing is an SDK-internal extension point; consumers
- * should use the concrete query classes.
+ * {@see \Setono\Quickpay\Request\Payment\PaymentsQuery} for `GET /payments` — and merge them into
+ * {@see toArray()}. The withers clone, so a subclass's filters are carried along automatically
+ * while paginating. Subclassing is an SDK-internal extension point; consumers should use the
+ * concrete query classes.
+ *
+ * `$page` / `$pageSize` are plain (non-readonly) public properties only so that the withers can
+ * clone-and-set on PHP 8.1 (reinitializing a readonly property during clone needs PHP 8.3); go
+ * through the constructor or the withers to keep the `>= 1` validation.
  */
 class CollectionRequestOptions
 {
     public function __construct(
-        public readonly int $page = 1,
-        public readonly int $pageSize = 20,
+        public int $page = 1,
+        public int $pageSize = 20,
     ) {
-        if ($page < 1) {
-            throw new \InvalidArgumentException(sprintf('Expected $page to be at least 1, got %d.', $page));
-        }
-
-        if ($pageSize < 1) {
-            throw new \InvalidArgumentException(sprintf('Expected $pageSize to be at least 1, got %d.', $pageSize));
-        }
+        self::assertAtLeastOne('$page', $page);
+        self::assertAtLeastOne('$pageSize', $pageSize);
     }
 
     /**
-     * A copy for another page (subclasses override to carry their filters along).
+     * A copy for another page, keeping everything else (including a subclass's filters).
      */
-    public function withPage(int $page): self
+    public function withPage(int $page): static
     {
-        return new self($page, $this->pageSize);
+        self::assertAtLeastOne('$page', $page);
+
+        $copy = clone $this;
+        $copy->page = $page;
+
+        return $copy;
     }
 
     /**
-     * A copy with another page size (subclasses override to carry their filters along).
+     * A copy with another page size, keeping everything else (including a subclass's filters).
      */
-    public function withPageSize(int $pageSize): self
+    public function withPageSize(int $pageSize): static
     {
-        return new self($this->page, $pageSize);
+        self::assertAtLeastOne('$pageSize', $pageSize);
+
+        $copy = clone $this;
+        $copy->pageSize = $pageSize;
+
+        return $copy;
     }
 
     /**
@@ -60,5 +69,12 @@ class CollectionRequestOptions
             'page' => $this->page,
             'page_size' => $this->pageSize,
         ];
+    }
+
+    private static function assertAtLeastOne(string $name, int $value): void
+    {
+        if ($value < 1) {
+            throw new \InvalidArgumentException(sprintf('Expected %s to be at least 1, got %d.', $name, $value));
+        }
     }
 }

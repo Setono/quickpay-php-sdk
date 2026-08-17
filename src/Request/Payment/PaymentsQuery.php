@@ -66,16 +66,6 @@ final class PaymentsQuery extends CollectionRequestOptions
         parent::__construct($page, $pageSize);
     }
 
-    public function withPage(int $page): self
-    {
-        return $this->with($page, $this->pageSize);
-    }
-
-    public function withPageSize(int $pageSize): self
-    {
-        return $this->with($this->page, $pageSize);
-    }
-
     public function toArray(): array
     {
         $query = $this->extra;
@@ -104,29 +94,6 @@ final class PaymentsQuery extends CollectionRequestOptions
         unset($query['page'], $query['page_size']);
 
         return $query + parent::toArray();
-    }
-
-    /**
-     * A copy with the same filters and the given pagination.
-     */
-    private function with(int $page, int $pageSize): self
-    {
-        return new self(
-            $this->orderId,
-            $this->state,
-            $this->accepted,
-            $this->minTime,
-            $this->maxTime,
-            $this->acquirer,
-            $this->fraudSuspected,
-            $this->id,
-            $this->sortBy,
-            $this->sortDir,
-            $this->operationsSize,
-            $this->extra,
-            $page,
-            $pageSize,
-        );
     }
 
     private static function bool(?bool $value): ?string

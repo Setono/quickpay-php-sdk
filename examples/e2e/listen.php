@@ -25,14 +25,10 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $path = parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), \PHP_URL_PATH) ?: '/';
 
 if ('POST' === $method && '/callback' === $path) {
-    $rawBody = (string) file_get_contents('php://input');
-    $checksum = (string) ($_SERVER['HTTP_QUICKPAY_CHECKSUM_SHA256'] ?? '');
-    $resourceType = (string) ($_SERVER['HTTP_QUICKPAY_RESOURCE_TYPE'] ?? '');
-
     try {
-        // We have raw superglobals here (not a PSR-7 request), so use handleRaw(). It verifies the
-        // checksum and requires the QuickPay-Resource-Type header to be a known value.
-        $callback = e2e_callback_handler()->handleRaw($rawBody, $checksum, $resourceType);
+        // Plain PHP, no PSR-7 request: handleGlobals() reads php://input + the QuickPay-* headers
+        // from $_SERVER, verifies the checksum and requires a known QuickPay-Resource-Type.
+        $callback = e2e_callback_handler()->handleGlobals();
     } catch (InvalidChecksumException $e) {
         http_response_code(403);
         e2e_log('CALLBACK REJECTED (bad checksum): ' . $e->getMessage());
@@ -52,7 +48,7 @@ if ('POST' === $method && '/callback' === $path) {
         e2e_log(sprintf(
             'CALLBACK OK  resource_type=%s (not a payment) account=%s',
             $callback->type->value,
-            (string) ($_SERVER['HTTP_QUICKPAY_ACCOUNT_ID'] ?? '-'),
+            $callback->accountId ?? '-',
         ));
         http_response_code(200);
         echo "ok\n";

@@ -12,6 +12,14 @@ use Setono\Quickpay\Exception\QuickpayException;
 use Setono\Quickpay\Exception\TransportException;
 use Setono\Quickpay\Request\Payload;
 
+/**
+ * The SDK's HTTP layer, as seen by the endpoints and by consumers who want to type-hint or mock it.
+ *
+ * `Client` is its only implementation. Type-hint against this interface and fake it in tests, but
+ * do not implement it in production code: it may gain optional parameters (and, in a major version,
+ * methods) as the SDK grows — the backwards-compatibility check baselines exactly such additions
+ * (`.roave-backward-compatibility-check.xml`).
+ */
 interface ClientInterface
 {
     /**

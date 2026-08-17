@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Setono\Quickpay\Client\Endpoint;
 
+use Setono\Quickpay\Client\Client;
 use Setono\Quickpay\Request\Payment\AuthorizePaymentRequest;
 use Setono\Quickpay\Request\Payment\CaptureRequest;
 use Setono\Quickpay\Request\Payment\CreateLinkRequest;
@@ -98,7 +99,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
      */
     public function authorize(int $id, AuthorizePaymentRequest $request, ?bool $synchronized = null, ?string $callbackUrl = null): Payment
     {
-        return $this->postOperation($id, 'authorize', $request, $synchronized, $callbackUrl);
+        return $this->postOperationWithHeaders($id, 'authorize', $request, $synchronized, [Client::CALLBACK_URL_HEADER => $callbackUrl]);
     }
 
     /**
@@ -108,7 +109,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
      */
     public function capture(int $id, CaptureRequest $request, ?bool $synchronized = null, ?string $callbackUrl = null): Payment
     {
-        return $this->postOperation($id, 'capture', $request, $synchronized, $callbackUrl);
+        return $this->postOperationWithHeaders($id, 'capture', $request, $synchronized, [Client::CALLBACK_URL_HEADER => $callbackUrl]);
     }
 
     /**
@@ -118,7 +119,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
      */
     public function refund(int $id, RefundRequest $request, ?bool $synchronized = null, ?string $callbackUrl = null): Payment
     {
-        return $this->postOperation($id, 'refund', $request, $synchronized, $callbackUrl);
+        return $this->postOperationWithHeaders($id, 'refund', $request, $synchronized, [Client::CALLBACK_URL_HEADER => $callbackUrl]);
     }
 
     /**
@@ -128,7 +129,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
      */
     public function cancel(int $id, ?bool $synchronized = null, ?string $callbackUrl = null): Payment
     {
-        return $this->postOperation($id, 'cancel', [], $synchronized, $callbackUrl);
+        return $this->postOperationWithHeaders($id, 'cancel', [], $synchronized, [Client::CALLBACK_URL_HEADER => $callbackUrl]);
     }
 
     /**

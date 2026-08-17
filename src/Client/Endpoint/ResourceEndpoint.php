@@ -17,7 +17,8 @@ use Setono\Quickpay\Response\Resource;
  *  - {@see self::getOne()}         — GET `"{getPath()}"` or `"{getPath()}/{$id}"`.
  *  - {@see self::createOne()}      — POST a typed body.
  *  - {@see self::updateOne()}      — PATCH a typed body to `"{getPath()}/{$id}"`.
- *  - {@see self::postOperation()}  — POST (optionally a body) to `"{getPath()}/{$id}/{$action}"`.
+ *  - {@see self::postOperation()}  — POST (optionally a body) to `"{getPath()}/{$id}/{$action}"`
+ *                                    ({@see self::postOperationWithHeaders()} to add request headers).
  *  - {@see self::putSubResource()} — PUT a typed body to `"{getPath()}/{$id}/{$sub}"`, returning
  *                                    the raw decoded array (for sub-resources mapped to a class
  *                                    other than the endpoint's item class, e.g. the payment link).
@@ -86,29 +87,49 @@ abstract class ResourceEndpoint extends Endpoint
      * (its final state) instead. When `$synchronized` is `null` the client-wide default
      * ({@see \Setono\Quickpay\Client\ClientInterface::isSynchronized()}) applies.
      *
-     * When `$callbackUrl` is given it is sent as the `QuickPay-Callback-Url` header
-     * ({@see Client::CALLBACK_URL_HEADER}), so Quickpay POSTs this operation's callback there
-     * instead of to the account-wide callback URL.
+     * To route the operation's callback, use {@see self::postOperationWithHeaders()} with
+     * {@see Client::CALLBACK_URL_HEADER}.
      *
      * @param Payload|array<string, mixed> $request
      *
      * @return T
      */
-    protected function postOperation(
+    protected function postOperation(int|string $id, string $action, Payload|array $request = [], ?bool $synchronized = null): Resource
+    {
+        return $this->postOperationWithHeaders($id, $action, $request, $synchronized, []);
+    }
+
+    /**
+     * {@see self::postOperation()} with extra request headers — e.g.
+     * `[Client::CALLBACK_URL_HEADER => $url]` so Quickpay POSTs this operation's callback there
+     * instead of to the account-wide callback URL. (Empty values are skipped, so callers can pass
+     * `[Client::CALLBACK_URL_HEADER => $maybeNull]` unconditionally.)
+     *
+     * @param Payload|array<string, mixed> $request
+     * @param array<string, string|null> $headers
+     *
+     * @return T
+     */
+    protected function postOperationWithHeaders(
         int|string $id,
         string $action,
-        Payload|array $request = [],
-        ?bool $synchronized = null,
-        ?string $callbackUrl = null,
+        Payload|array $request,
+        ?bool $synchronized,
+        array $headers,
     ): Resource {
         $path = sprintf('%s/%s/%s', static::getPath(), $id, $action);
         if ($synchronized ?? $this->client->isSynchronized()) {
             $path .= '?synchronized';
         }
 
-        $headers = null === $callbackUrl ? [] : [Client::CALLBACK_URL_HEADER => $callbackUrl];
+        $sent = [];
+        foreach ($headers as $name => $value) {
+            if (null !== $value && '' !== $value) {
+                $sent[$name] = $value;
+            }
+        }
 
-        return $this->mapItem(static::getItemClass(), $this->client->post($path, $request, $headers));
+        return $this->mapItem(static::getItemClass(), $this->client->post($path, $request, $sent));
     }
 
     /**

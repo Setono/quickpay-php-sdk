@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+    Baseline for the Roave backwards-compatibility check (.github/workflows/backwards-compatibility-check.yaml).
+
+    Only list changes here that are deliberate and documented. Each entry says why.
+-->
+<roave-bc-check
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="vendor/roave/backward-compatibility-check/Resources/schema.xsd">
+    <baseline>
+        <!--
+            ClientInterface is implemented by the SDK's own (final) Client only; consumers type-hint
+            against it and mock it, they do not implement it (documented on the interface). Adding
+            OPTIONAL parameters to its methods therefore breaks nobody in practice, and is how the
+            low-level helpers grew per-request headers (QuickPay-Callback-Url) in 1.1 / #26.
+        -->
+        <ignored-regex>#Parameter headers was added to Method (get|post|put|patch|delete)\(\) of class Setono\\Quickpay\\Client\\ClientInterface#</ignored-regex>
+    </baseline>
+</roave-bc-check>

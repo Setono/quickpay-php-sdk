@@ -7,13 +7,16 @@ namespace Setono\Quickpay\Response\Payment;
 use Setono\Quickpay\Response\Resource;
 
 /**
- * The payment window link returned by `PUT /payments/{id}/link`, and the `link` object nested on a
- * {@see Payment}.
+ * The payment window link: the `link` object nested on a {@see Payment}, and what
+ * `PUT /payments/{id}/link` ({@see \Setono\Quickpay\Client\Endpoint\PaymentsEndpoint::createLink()})
+ * returns.
  *
- * `$url` is the URL the customer should be redirected to in order to complete the payment. Any field
- * the SDK does not model is reachable via {@see Resource::$raw} (only populated when the `Link` is
- * returned directly from `createLink()`; when nested on a `Payment`, reach it via the payment's
- * `$raw['link']`).
+ * `$url` is the URL the customer should be redirected to in order to complete the payment — and it
+ * is the ONLY field the `createLink()` response carries (the API answers `{"url": "..."}`), so on
+ * that instance every other property is `null` and `$raw` is just `['url' => ...]`. The full link
+ * (`amount`, `continueUrl`, `callbackUrl`, …) is available on the payment itself, e.g. via
+ * `getById()` → `$payment->link`; fields the SDK does not model are in the payment's `$raw['link']`
+ * (nested instances are not `$raw`-stamped).
  */
 final class Link extends Resource
 {

@@ -24,6 +24,16 @@ use Setono\Quickpay\Response\Payment\Payment;
  * state, acceptance, creation time, etc. — see {@see self::findByOrderId()} for the common
  * "look up the payment for an order" case.
  *
+ * The operation methods (`authorize`, `capture`, `refund`, `cancel`) share one contract: Quickpay
+ * processes them asynchronously by default and answers `202 Accepted`. The returned {@see Payment}
+ * is then only a snapshot taken when the operation was QUEUED — the new operation has
+ * `pending: true` and no `qpStatusCode` yet, and fields such as `state` and `balance` still hold
+ * their pre-operation values; they say nothing about the outcome. Confirm the result via the
+ * callback, or by re-fetching with {@see self::getById()} until the operation's `pending` is
+ * `false` (a `qpStatusCode` of `"20000"` then means approved). Pass `$synchronized = true` to make
+ * Quickpay wait and return the completed transaction instead; `null` (the default) falls back to
+ * the client-wide `synchronized` flag set on the `Client` constructor.
+ *
  * @extends CollectionEndpoint<Payment>
  */
 final class PaymentsEndpoint extends CollectionEndpoint
@@ -75,16 +85,10 @@ final class PaymentsEndpoint extends CollectionEndpoint
 
     /**
      * POST `/payments/{id}/authorize`. The body is required — the live API validates `amount` as
-     * required, so a request-less authorize can never succeed. Pass `$synchronized = true` to wait for and return the
-     * completed transaction instead of the default asynchronous (pending) response; `null` (the
-     * default) falls back to the client-wide `synchronized` flag set on the `Client` constructor.
-     *
-     * When run asynchronously the API answers `202 Accepted` and the returned {@see Payment} is only
-     * a snapshot taken when the operation was QUEUED: the new operation has `pending: true` and no
-     * `qpStatusCode` yet, and fields such as `state` and `balance` still hold their pre-operation
-     * values — they say nothing about the outcome. Confirm the result via the callback, or by
-     * re-fetching with {@see self::getById()} until the operation's `pending` is `false` (then a
-     * `qpStatusCode` of `"20000"` means approved).
+     * required, so a request-less authorize can never succeed. Note this puts you in PCI scope
+     * (card data); most integrations authorize through the payment window ({@see self::createLink()}).
+     * Async by default — see the class docblock for what the response does (and doesn't) tell you
+     * and for `$synchronized`.
      */
     public function authorize(int $id, AuthorizePaymentRequest $request, ?bool $synchronized = null): Payment
     {
@@ -92,16 +96,9 @@ final class PaymentsEndpoint extends CollectionEndpoint
     }
 
     /**
-     * POST `/payments/{id}/capture`. Pass `$synchronized = true` to wait for and return the completed
-     * transaction instead of the default asynchronous (pending) response; `null` (the default) falls
-     * back to the client-wide `synchronized` flag set on the `Client` constructor.
-     *
-     * When run asynchronously the API answers `202 Accepted` and the returned {@see Payment} is only
-     * a snapshot taken when the operation was QUEUED: the new operation has `pending: true` and no
-     * `qpStatusCode` yet, and fields such as `state` and `balance` still hold their pre-operation
-     * values — they say nothing about the outcome. Confirm the result via the callback, or by
-     * re-fetching with {@see self::getById()} until the operation's `pending` is `false` (then a
-     * `qpStatusCode` of `"20000"` means approved).
+     * POST `/payments/{id}/capture` — capture (part of) an authorized amount; several partial
+     * captures are possible. Async by default — see the class docblock for what the response does
+     * (and doesn't) tell you and for `$synchronized`.
      */
     public function capture(int $id, CaptureRequest $request, ?bool $synchronized = null): Payment
     {
@@ -109,16 +106,8 @@ final class PaymentsEndpoint extends CollectionEndpoint
     }
 
     /**
-     * POST `/payments/{id}/refund`. Pass `$synchronized = true` to wait for and return the completed
-     * transaction instead of the default asynchronous (pending) response; `null` (the default) falls
-     * back to the client-wide `synchronized` flag set on the `Client` constructor.
-     *
-     * When run asynchronously the API answers `202 Accepted` and the returned {@see Payment} is only
-     * a snapshot taken when the operation was QUEUED: the new operation has `pending: true` and no
-     * `qpStatusCode` yet, and fields such as `state` and `balance` still hold their pre-operation
-     * values — they say nothing about the outcome. Confirm the result via the callback, or by
-     * re-fetching with {@see self::getById()} until the operation's `pending` is `false` (then a
-     * `qpStatusCode` of `"20000"` means approved).
+     * POST `/payments/{id}/refund` — refund (part of) the captured balance. Async by default — see
+     * the class docblock for what the response does (and doesn't) tell you and for `$synchronized`.
      */
     public function refund(int $id, RefundRequest $request, ?bool $synchronized = null): Payment
     {
@@ -126,16 +115,8 @@ final class PaymentsEndpoint extends CollectionEndpoint
     }
 
     /**
-     * POST `/payments/{id}/cancel`. Pass `$synchronized = true` to wait for and return the completed
-     * transaction instead of the default asynchronous (pending) response; `null` (the default) falls
-     * back to the client-wide `synchronized` flag set on the `Client` constructor.
-     *
-     * When run asynchronously the API answers `202 Accepted` and the returned {@see Payment} is only
-     * a snapshot taken when the operation was QUEUED: the new operation has `pending: true` and no
-     * `qpStatusCode` yet, and fields such as `state` still hold their pre-operation values — they
-     * say nothing about the outcome. Confirm the result via the callback, or by re-fetching with
-     * {@see self::getById()} until the operation's `pending` is `false` (then a `qpStatusCode` of
-     * `"20000"` means approved).
+     * POST `/payments/{id}/cancel` — void the authorization (no body). Async by default — see the
+     * class docblock for what the response does (and doesn't) tell you and for `$synchronized`.
      */
     public function cancel(int $id, ?bool $synchronized = null): Payment
     {

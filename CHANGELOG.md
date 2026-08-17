@@ -24,8 +24,6 @@ Developer-experience follow-ups from the v1.0.0 review ([#10](https://github.com
 - `Client::delete()`, plain-array bodies on `post()`/`put()`/`patch()`, and
   `PaymentsEndpoint::deleteLink()`; a `204 No Content` response decodes to `[]`
   ([#14](https://github.com/Setono/quickpay-php-sdk/pull/14)).
-- `Setono\Quickpay\Testing\ScriptedHttpClient` — the in-process PSR-18 fake, shipped for consumers'
-  tests ([#15](https://github.com/Setono/quickpay-php-sdk/pull/15)).
 - `cache:` constructor argument on `Client` and `CallbackHandler`; `Client::defaultMapperBuilder()` /
   `defaultNormalizerBuilder()` are public ([#16](https://github.com/Setono/quickpay-php-sdk/pull/16)).
 - `CallbackHandler::handleGlobals()`; `handleRaw()` accepts the optional `accountId` / `apiVersion`
@@ -37,7 +35,7 @@ Developer-experience follow-ups from the v1.0.0 review ([#10](https://github.com
   (`Shopsystem` payload); the SDK version in the `User-Agent` (`Client::version()`)
   ([#19](https://github.com/Setono/quickpay-php-sdk/pull/19)).
 - README: table of contents, "Concepts", callback best practices, framework snippets, recipes, and
-  sections on testing, the escape hatch and error handling
+  sections on the escape hatch and error handling
   ([#12](https://github.com/Setono/quickpay-php-sdk/pull/12)–[#20](https://github.com/Setono/quickpay-php-sdk/pull/20)).
 - `composer.json` keywords / homepage / support; this changelog
   ([#21](https://github.com/Setono/quickpay-php-sdk/pull/21)).

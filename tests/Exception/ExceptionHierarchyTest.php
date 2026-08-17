@@ -48,6 +48,8 @@ final class ExceptionHierarchyTest extends TestCase
         yield 'invalid url is a quickpay exception' => [InvalidUrlException::class, QuickpayException::class];
         yield 'invalid checksum is a quickpay exception' => [InvalidChecksumException::class, QuickpayException::class];
         yield 'invalid callback is a quickpay exception' => [InvalidCallbackException::class, QuickpayException::class];
+        yield 'transport is a quickpay exception' => [TransportException::class, QuickpayException::class];
+        yield 'transport is still a PSR-18 client exception' => [TransportException::class, \Psr\Http\Client\ClientExceptionInterface::class];
     }
 
     #[Test]

@@ -23,11 +23,10 @@ client.
     [Updating a payment](#updating-a-payment) ·
     [Reading and listing payments](#reading-and-listing-payments)
   - [Callbacks](#callbacks) — verifying, framework snippets, [handling them robustly](#handling-callbacks-robustly), testing your endpoint
-  - [Testing code that uses the SDK](#testing-code-that-uses-the-sdk) ·
-    [Accessing fields the SDK doesn't model](#accessing-fields-the-sdk-doesnt-model) ·
+  - [Accessing fields the SDK doesn't model](#accessing-fields-the-sdk-doesnt-model) ·
     [Calling endpoints the SDK doesn't model](#calling-endpoints-the-sdk-doesnt-model) ·
     [Error handling](#error-handling)
-- [Recipes](#recipes) — checkout end to end, wiring in Symfony
+- [Recipes](#recipes) — checkout end to end, testing your integration, wiring in Symfony
 - [Production usage](#production-usage) · [Contributing](#contributing) · [End-to-end testing](#end-to-end-testing)
 
 ## Installation
@@ -503,6 +502,16 @@ if (!$payment->latestOperation()?->isApproved()) {
     // rejected — see qpStatusMsg / aqStatusMsg
 }
 ```
+
+### Testing your integration
+
+`Client` and the endpoints are `final` on purpose: the seam for tests is the **HTTP client**. Inject
+whatever PSR-18 fake your stack already has — `php-http/mock-client`, Symfony's `MockHttpClient`
+behind `Psr18Client`, Guzzle's `MockHandler` — via `new Client('test-key', httpClient: $fake)` and
+feed it captured JSON bodies (`$client->getLastResponse()` gives you real ones). Your tests then
+exercise the SDK's real request building, mapping and error handling. Response DTOs have public
+constructors, so code that merely *consumes* a `Payment` can be tested with hand-built objects; for
+callbacks see [Testing your callback endpoint](#testing-your-callback-endpoint).
 
 ### Wiring in Symfony
 

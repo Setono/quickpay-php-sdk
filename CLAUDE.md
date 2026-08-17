@@ -17,7 +17,7 @@ Composer scripts (run via `composer <script>`):
 - `vendor/bin/infection` — mutation testing. Gates: `minMsi 50`, `minCoveredMsi 70`. The Stryker dashboard upload is branch-gated in `infection.json.dist` (`stryker.badge`) — currently `1.x`; update it when the working branch changes.
 - `composer e2e:smoke` / `e2e:listen` / `e2e:create` / `e2e:operate` — the dev-only end-to-end harness (`examples/e2e/`), documented in `examples/e2e/README.md`. It hits the **real** API, so it loads a gitignored `.env.local` (`QUICKPAY_API_KEY`, `QUICKPAY_PRIVATE_KEY`). `e2e:smoke` is the quickest real check (ping → create → link → get, charges nothing).
 
-CI (`.github/workflows/build.yaml`, branch `1.x`): coding-standards, dependency-analysis, static-analysis and unit-tests run PHP **8.1–8.5 × lowest/highest**; code-coverage (Codecov, `codecov/codecov-action@v5`) and mutation-tests (Stryker) run on 8.3. When changing dependency constraints, check both `lowest` and `highest` still resolve on 8.5.
+CI (`.github/workflows/build.yaml`, branch `1.x`): coding-standards, dependency-analysis, static-analysis and unit-tests run PHP **8.1–8.5 × lowest/highest**; code-coverage (Codecov, `codecov/codecov-action@v5`) and mutation-tests (Stryker) run on 8.3. `.github/workflows/backwards-compatibility-check.yaml` runs [Roave BC check](https://github.com/Roave/BackwardCompatibilityCheck) on every PR against its base branch (PHP 8.4, current tool) — a flagged break must either be reverted or be a deliberate, documented major-version change. When changing dependency constraints, check both `lowest` and `highest` still resolve on 8.5.
 
 ## Architecture
 

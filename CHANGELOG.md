@@ -34,6 +34,14 @@ Developer-experience follow-ups from the v1.0.0 review ([#10](https://github.com
 - `Payment::variables()`, `Payment::$deadlineAt`, `Payment::$acquirer`; `CreatePaymentRequest::$shopsystem`
   (`Shopsystem` payload); the SDK version in the `User-Agent` (`Client::version()`)
   ([#19](https://github.com/Setono/quickpay-php-sdk/pull/19)).
+- Outcome predicates and status views: `Operation::hasOutcome()` / `isDeclined()`;
+  `Payment::latestOperationOfType()`, `latestApprovedOperation()`, `hasApprovedOperation(?type)`,
+  and `hasPendingOperation()` now takes an optional type ([#27](https://github.com/Setono/quickpay-php-sdk/pull/27), closes #25).
+- `CreatePaymentRequest` validates `orderId` at construction (`ORDER_ID_PATTERN`: 4–20 characters
+  of letters, digits, space, `.`, `_`, `-` — verified live) and throws the new
+  `Setono\Quickpay\Exception\InvalidArgumentException` (an SPL `InvalidArgumentException` that is
+  also a `QuickpayException`; `CollectionRequestOptions` now throws it too);
+  `CreateLinkRequest::$paymentMethods` accepts a list and joins it ([#27](https://github.com/Setono/quickpay-php-sdk/pull/27)).
 - README: table of contents, "Concepts", callback best practices, framework snippets, recipes, and
   sections on the escape hatch and error handling
   ([#12](https://github.com/Setono/quickpay-php-sdk/pull/12)–[#20](https://github.com/Setono/quickpay-php-sdk/pull/20)).

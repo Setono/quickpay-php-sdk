@@ -23,9 +23,13 @@ use Setono\Quickpay\Response\Resource;
  * …), each with a `pending` flag and Quickpay status code. The helpers below answer the usual
  * questions without hand-rolling that inspection: {@see self::authorizedAmount()},
  * {@see self::capturedAmount()}, {@see self::refundedAmount()}, {@see self::isCancelled()},
- * {@see self::hasPendingOperation()}, {@see self::latestOperation()}, {@see self::operation()} and
- * {@see self::operationsOfType()}. Note `$accepted` is Quickpay's own "authorization accepted by
- * the acquirer" flag and `$balance` its captured-minus-refunded balance.
+ * {@see self::hasApprovedOperation()}, {@see self::hasPendingOperation()},
+ * {@see self::latestApprovedOperation()}, {@see self::latestOperationOfType()},
+ * {@see self::latestOperation()}, {@see self::operation()} and {@see self::operationsOfType()}.
+ * "Latest" always means the highest operation id. Note `$accepted` is Quickpay's own
+ * "authorization accepted by the acquirer" flag and `$balance` its captured-minus-refunded balance
+ * — and while ANY operation is in flight `$state` reads `pending` and `$balance` still holds its
+ * pre-operation value.
  */
 final class Payment extends Resource
 {
@@ -104,14 +108,7 @@ final class Payment extends Resource
      */
     public function latestOperation(): ?Operation
     {
-        $latest = null;
-        foreach ($this->operations as $operation) {
-            if (null === $latest || $operation->id > $latest->id) {
-                $latest = $operation;
-            }
-        }
-
-        return $latest;
+        return self::latestOf($this->operations);
     }
 
     /**
@@ -129,15 +126,58 @@ final class Payment extends Resource
     }
 
     /**
-     * Whether any operation is still being processed. When Quickpay runs an operation
-     * asynchronously (the default) the payment returned by capture/refund/cancel is only a snapshot
-     * taken when the operation was queued — poll `getById()` or wait for the callback until this
-     * is `false` before reading the outcome.
+     * The most recent operation of the given type (highest id, whatever its outcome), or `null`.
+     * This is the one to ask "did my capture go through?": e.g.
+     * `$payment->latestOperationOfType(OperationType::Capture)?->isApproved()` — and
+     * `->isDeclined()` for the synchronized-decline case, which is a `2xx` with the decline on the
+     * operation.
      */
-    public function hasPendingOperation(): bool
+    public function latestOperationOfType(OperationType|string $type): ?Operation
+    {
+        return self::latestOf($this->operationsOfType($type));
+    }
+
+    /**
+     * The most recent APPROVED operation (highest id) of any type, or `null` if nothing was approved
+     * yet. This is what decides where the money is: a trailing rejected or still-pending attempt
+     * must not mask what actually happened, so read this rather than {@see self::latestOperation()}
+     * when mapping a payment to a status.
+     */
+    public function latestApprovedOperation(): ?Operation
+    {
+        return self::latestOf(array_values(array_filter(
+            $this->operations,
+            static fn (Operation $operation): bool => $operation->isApproved(),
+        )));
+    }
+
+    /**
+     * Whether an APPROVED operation exists — of the given type, or of any type when `$type` is
+     * `null` (e.g. `hasApprovedOperation(OperationType::Capture)`: "was anything ever captured?").
+     */
+    public function hasApprovedOperation(OperationType|string|null $type = null): bool
     {
         foreach ($this->operations as $operation) {
-            if ($operation->pending) {
+            if ($operation->isApproved() && (null === $type || $operation->isOfType($type))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether an operation is still being processed — of the given type, or of any type when
+     * `$type` is `null` (e.g. `hasPendingOperation(OperationType::Refund)`: "is a refund in flight?",
+     * the guard before issuing another one). When Quickpay runs an operation asynchronously (the
+     * default) the payment returned by capture/refund/cancel is only a snapshot taken when the
+     * operation was queued — poll `getById()` or wait for the callback until this is `false` before
+     * reading the outcome.
+     */
+    public function hasPendingOperation(OperationType|string|null $type = null): bool
+    {
+        foreach ($this->operations as $operation) {
+            if ($operation->pending && (null === $type || $operation->isOfType($type))) {
                 return true;
             }
         }
@@ -184,6 +224,23 @@ final class Payment extends Resource
         }
 
         return false;
+    }
+
+    /**
+     * The operation with the highest id — the most recent one, regardless of array order.
+     *
+     * @param list<Operation> $operations
+     */
+    private static function latestOf(array $operations): ?Operation
+    {
+        $latest = null;
+        foreach ($operations as $operation) {
+            if (null === $latest || $operation->id > $latest->id) {
+                $latest = $operation;
+            }
+        }
+
+        return $latest;
     }
 
     private function approvedAmount(OperationType $type): int

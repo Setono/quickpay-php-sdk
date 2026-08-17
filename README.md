@@ -65,12 +65,17 @@ present before you deploy.
    invalid, `5xxxx` = gateway/acquirer error — see [Errors and codes](https://learn.quickpay.net/tech-talk/appendixes/errors/)).
    The payment's own fields summarize the ledger: `accepted` (an authorization was approved by the
    acquirer), `state` (`initial` → `pending` while an authorization is in flight → `new` once
-   authorized, or `rejected`; `processed` after capture/cancel/refund activity), and `balance`
-   (captured minus refunded). Read the operations, not just the state — the SDK's
-   [helpers](#reading-what-happened-to-a-payment) do that for you.
+   authorized, or `rejected`; `processed` after capture/cancel/refund activity — and `pending` again
+   for the moment *any* asynchronous operation is in flight, with `balance` still showing its
+   pre-operation value), and `balance` (captured minus refunded). Read the operations, not just the
+   state — the SDK's [helpers](#reading-what-happened-to-a-payment) do that for you. A declined
+   operation is not retried by Quickpay: e.g. a declined auto-capture leaves the payment `new` /
+   authorized, and it is up to you to capture again.
 4. **Operations are asynchronous by default.** `capture()` etc. return `202 Accepted` with the new
    operation still `pending: true`; the outcome arrives via the callback (or by re-fetching). Pass
-   `synchronized: true` (per call or as a client default) to wait for the result instead.
+   `synchronized: true` (per call or as a client default) to wait for the result instead — and note
+   that a *declined* synchronized operation is still a `2xx`: the decline is on the operation
+   (`latestOperationOfType(...)?->isDeclined()`), not an exception.
 5. **The redirect back to your shop proves nothing.** When the customer returns to `continue_url`
    the request carries no payment data and can arrive *before* the callback. Treat the signed
    [callback](#callbacks) — or a `getById()` on your side — as the source of truth for "paid".
@@ -104,7 +109,11 @@ echo $payment->state()?->name; // PaymentState enum (or null for an unknown valu
 
 Fields the Quickpay API unconditionally requires (verified against the live API) are required
 constructor arguments — `orderId` and `currency` here, `amount` on links and operations. Every other
-field is optional and simply omitted from the request JSON when unset.
+field is optional and simply omitted from the request JSON when unset. The one format rule the SDK
+enforces locally is `orderId`: 4–20 characters of letters, digits, space, `.`, `_` and `-`
+(`CreatePaymentRequest::ORDER_ID_PATTERN`) — Quickpay rejects anything else, but under a message
+that only mentions the length, so the SDK throws a `Setono\Quickpay\Exception\InvalidArgumentException`
+naming the actual rule before any request is made.
 
 ### Payment link flow (redirect the customer to the payment window)
 
@@ -128,6 +137,9 @@ header('Location: ' . $link->url);
 
 `continueUrl` / `cancelUrl` are where the customer is sent after a successful / cancelled payment;
 `callbackUrl` is the server-to-server URL Quickpay POSTs the result to (see [Callbacks](#callbacks)).
+To restrict the payment methods the window offers, pass `paymentMethods:` either as Quickpay's
+comma-separated string (`'creditcard,!amex,mobilepay'` — `!` excludes) or as a list
+(`['creditcard', '!amex', 'mobilepay']`), which the SDK joins for you.
 If the order is cancelled before the customer pays, invalidate the link with
 `$client->payments()->deleteLink($payment->id)`.
 
@@ -186,12 +198,35 @@ $latest?->type();                       // OperationType enum (or null for an un
 
 $payment->operation(3);                            // ?Operation by id
 $payment->operationsOfType(OperationType::Capture); // list<Operation>
+
+// The questions that decide an order's status:
+$payment->latestApprovedOperation();                       // newest APPROVED op of any type — where the money actually is;
+                                                           // a trailing rejected/pending attempt does not mask it
+$payment->latestOperationOfType(OperationType::Capture);   // newest capture, whatever its outcome
+$payment->hasApprovedOperation(OperationType::Capture);    // was anything ever captured?
+$payment->hasPendingOperation(OperationType::Refund);      // is a refund in flight? (guard before issuing another)
+
+// Reading a single operation's outcome:
+$op->hasOutcome();   // no longer pending — the status codes mean something now
+$op->isApproved();   // qp_status_code 20000
+$op->isDeclined();   // completed but NOT approved: rejected (4xxxx), error (5xxxx), auth required (3xxxx)
 ```
 
 Only **approved** operations count towards the amounts — pending or rejected ones don't. When an
 operation was run asynchronously (the default), poll `getById()` or wait for the callback until
 `hasPendingOperation()` is `false` before trusting the amounts. Operation ids are numbered per
 payment (`1`, `2`, …), which makes them a good idempotency key when handling callbacks.
+
+A **declined synchronized operation is not an exception**: `capture(..., synchronized: true)` on a
+card that declines returns a `2xx` payment whose new operation `isDeclined()`. Check it:
+
+```php
+$payment = $client->payments()->capture($id, new CaptureRequest($amount), synchronized: true);
+$capture = $payment->latestOperationOfType(OperationType::Capture);
+if (null === $capture || !$capture->isApproved()) {
+    // declined — $capture?->qpStatusMsg / ->aqStatusMsg say why; Quickpay will not retry it for you
+}
+```
 
 ### Updating a payment
 

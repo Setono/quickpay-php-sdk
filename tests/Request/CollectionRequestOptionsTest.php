@@ -6,6 +6,7 @@ namespace Setono\Quickpay\Request;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Setono\Quickpay\Exception\InvalidArgumentException;
 
 final class CollectionRequestOptionsTest extends TestCase
 {
@@ -68,5 +69,17 @@ final class CollectionRequestOptionsTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Expected $pageSize to be at least 1, got -5.');
         $opts->withPageSize(-5);
+    }
+
+    #[Test]
+    public function the_validation_error_is_an_sdk_exception_and_still_an_spl_invalid_argument(): void
+    {
+        try {
+            new CollectionRequestOptions(0);
+            self::fail('Expected an exception.');
+        } catch (InvalidArgumentException $e) {
+            // (Its hierarchy — QuickpayException + SPL InvalidArgumentException — is pinned in ExceptionHierarchyTest.)
+            self::assertStringContainsString('at least 1', $e->getMessage());
+        }
     }
 }

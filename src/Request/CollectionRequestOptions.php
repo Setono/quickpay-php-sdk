@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Setono\Quickpay\Request;
 
+use Setono\Quickpay\Exception\InvalidArgumentException;
+
 /**
  * Immutable options for a paginated list request: which page and how many entries per page.
  *
@@ -74,7 +76,7 @@ class CollectionRequestOptions
     private static function assertAtLeastOne(string $name, int $value): void
     {
         if ($value < 1) {
-            throw new \InvalidArgumentException(sprintf('Expected %s to be at least 1, got %d.', $name, $value));
+            throw new InvalidArgumentException(sprintf('Expected %s to be at least 1, got %d.', $name, $value));
         }
     }
 }

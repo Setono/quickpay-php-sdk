@@ -163,6 +163,95 @@ final class PaymentTest extends TestCase
         self::assertSame(0, $payment->refundedAmount());
     }
 
+    #[Test]
+    public function operation_has_an_outcome_once_it_is_no_longer_pending(): void
+    {
+        self::assertFalse((new Operation(id: 1, type: 'capture', pending: true))->hasOutcome());
+        self::assertTrue((new Operation(id: 1, type: 'capture', pending: false, qpStatusCode: '20000'))->hasOutcome());
+        self::assertTrue((new Operation(id: 1, type: 'capture', pending: false, qpStatusCode: '40000'))->hasOutcome());
+    }
+
+    #[Test]
+    public function operation_is_declined_only_when_completed_and_not_approved(): void
+    {
+        self::assertFalse((new Operation(id: 1, type: 'capture', pending: true))->isDeclined(), 'pending: nothing is known yet');
+        self::assertFalse((new Operation(id: 1, type: 'capture', pending: false, qpStatusCode: '20000'))->isDeclined(), 'approved is not declined');
+        self::assertTrue((new Operation(id: 1, type: 'capture', pending: false, qpStatusCode: '40000'))->isDeclined(), 'rejected by acquirer');
+        self::assertTrue((new Operation(id: 1, type: 'capture', pending: false, qpStatusCode: '50300'))->isDeclined(), 'communication error');
+        self::assertTrue((new Operation(id: 1, type: 'authorize', pending: false, qpStatusCode: '30100'))->isDeclined(), '3-D Secure required: not approved (yet)');
+        self::assertTrue((new Operation(id: 1, type: 'capture', pending: false, qpStatusCode: null))->isDeclined(), 'completed without a code is not approved either');
+        // Approved and declined are mutually exclusive once there is an outcome.
+        foreach (['20000', '40000', '30100', null] as $code) {
+            $op = new Operation(id: 1, type: 'capture', pending: false, qpStatusCode: $code);
+            self::assertTrue($op->isApproved() xor $op->isDeclined());
+        }
+    }
+
+    #[Test]
+    public function it_finds_the_latest_operation_of_a_type_regardless_of_outcome(): void
+    {
+        $payment = self::payment(
+            self::operation(1, 'authorize', 1000),
+            $capture1 = self::operation(2, 'capture', 400),
+            $capture2 = self::operation(3, 'capture', 600, qpStatusCode: '40000'), // declined, still the latest capture
+            self::operation(4, 'refund', 100),
+        );
+
+        self::assertSame($capture2, $payment->latestOperationOfType(OperationType::Capture));
+        self::assertSame($capture2, $payment->latestOperationOfType('capture'));
+        self::assertTrue($capture2->isDeclined());
+        self::assertNull($payment->latestOperationOfType(OperationType::Cancel));
+        self::assertSame($capture1, $payment->operationsOfType(OperationType::Capture)[0]);
+    }
+
+    #[Test]
+    public function the_latest_approved_operation_ignores_trailing_rejected_or_pending_attempts(): void
+    {
+        $payment = self::payment(
+            self::operation(1, 'authorize', 1000),
+            $capture = self::operation(2, 'capture', 1000),
+            self::operation(3, 'refund', 300, qpStatusCode: '40000'), // rejected refund
+            self::operation(4, 'refund', 300, pending: true), // retry in flight
+        );
+
+        self::assertSame($capture, $payment->latestApprovedOperation(), 'money is still fully captured');
+        self::assertSame(4, $payment->latestOperation()?->id, 'whereas latestOperation() is the pending retry');
+        self::assertNull(self::payment(self::operation(1, 'authorize', 1000, qpStatusCode: '40000'))->latestApprovedOperation());
+        self::assertNull(self::payment()->latestApprovedOperation());
+    }
+
+    #[Test]
+    public function it_tells_whether_an_approved_operation_exists_by_type_or_at_all(): void
+    {
+        $payment = self::payment(
+            self::operation(1, 'authorize', 1000),
+            self::operation(2, 'capture', 1000, qpStatusCode: '40000'),
+            self::operation(3, 'capture', 1000, pending: true),
+        );
+
+        self::assertTrue($payment->hasApprovedOperation());
+        self::assertTrue($payment->hasApprovedOperation(OperationType::Authorize));
+        self::assertTrue($payment->hasApprovedOperation('authorize'));
+        self::assertFalse($payment->hasApprovedOperation(OperationType::Capture), 'one rejected, one pending — none approved');
+        self::assertFalse(self::payment()->hasApprovedOperation());
+    }
+
+    #[Test]
+    public function it_tells_whether_an_operation_of_a_type_is_pending(): void
+    {
+        $payment = self::payment(
+            self::operation(1, 'authorize', 1000),
+            self::operation(2, 'capture', 1000),
+            self::operation(3, 'refund', 300, pending: true),
+        );
+
+        self::assertTrue($payment->hasPendingOperation());
+        self::assertTrue($payment->hasPendingOperation(OperationType::Refund));
+        self::assertTrue($payment->hasPendingOperation('refund'));
+        self::assertFalse($payment->hasPendingOperation(OperationType::Capture));
+        self::assertFalse(self::payment(self::operation(1, 'authorize', 1000))->hasPendingOperation(OperationType::Authorize));
+    }
+
     private static function payment(Operation ...$operations): Payment
     {
         return new Payment(id: 1, orderId: 'o', currency: 'DKK', state: 'processed', merchantId: 1, operations: array_values($operations));

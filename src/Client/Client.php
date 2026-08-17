@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Setono\Quickpay\Client;
 
+use Composer\InstalledVersions;
 use CuyZ\Valinor\Cache\Cache;
 use CuyZ\Valinor\MapperBuilder;
 use CuyZ\Valinor\Normalizer\Format;
@@ -361,9 +362,24 @@ final class Client implements ClientInterface
         }
     }
 
+    /**
+     * `Setono-Quickpay-PHP/1.2.3 (+https://github.com/Setono/quickpay-php-sdk)` — the installed
+     * package version helps Quickpay support (and you) tell integrations apart in request logs.
+     */
     private function userAgent(): string
     {
-        return 'Setono-Quickpay-PHP (+https://github.com/Setono/quickpay-php-sdk)';
+        return sprintf('Setono-Quickpay-PHP/%s (+https://github.com/Setono/quickpay-php-sdk)', self::version());
+    }
+
+    /**
+     * The installed version of this package (`dev-1.x` etc. for a source checkout), or `unknown`
+     * when Composer does not know about it (a vendored copy, a phar).
+     */
+    public static function version(): string
+    {
+        $package = 'setono/quickpay-php-sdk';
+
+        return InstalledVersions::isInstalled($package) ? (InstalledVersions::getPrettyVersion($package) ?? 'unknown') : 'unknown';
     }
 
     private static function camelToSnake(string $key): string

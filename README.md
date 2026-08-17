@@ -204,7 +204,15 @@ use Setono\Quickpay\Request\Payment\UpdatePaymentRequest;
 $client->payments()->updatePayment($payment->id, new UpdatePaymentRequest(
     variables: ['internal_ref' => 'abc-123'],
 ));
+
+// Read them back later — keys and value types exactly as you sent them
+$client->payments()->getById($payment->id)->variables()['internal_ref']; // "abc-123"
 ```
+
+If you ship a plugin/module, identify it on the payments it creates with
+`new CreatePaymentRequest(..., shopsystem: new Shopsystem(name: 'acme/shop-plugin', version: '2.3.4'))`
+— Quickpay shows it on the payment (`metadata.shopsystem_name` / `shopsystem_version`), which helps
+telling integrations apart in the manager and when talking to support.
 
 > Authorizing directly via the API — `$client->payments()->authorize($id, new AuthorizePaymentRequest(...))` —
 > requires you to handle card data and puts you in PCI scope. Most integrations authorize through the

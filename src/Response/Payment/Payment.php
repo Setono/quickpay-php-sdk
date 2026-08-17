@@ -15,7 +15,9 @@ use Setono\Quickpay\Response\Resource;
  * {@see Resource::$raw} using the original snake_case keys (e.g. `$payment->raw['text_on_statement']`).
  *
  * Amounts (`$balance`, `$fee`, operation amounts) are integers in the smallest unit of the
- * payment's currency.
+ * payment's currency. `$deadlineAt` is the authorize deadline (if one was set), `$acquirer` the
+ * acquirer that processed the transaction (`null` until it was authorized). Your own `variables`
+ * are available via {@see self::variables()}.
  *
  * What happened to a payment is recorded in its `$operations` (authorize, capture, refund, cancel,
  * …), each with a `pending` flag and Quickpay status code. The helpers below answer the usual
@@ -47,7 +49,29 @@ final class Payment extends Resource
         public readonly ?Metadata $metadata = null,
         public readonly ?\DateTimeImmutable $createdAt = null,
         public readonly ?\DateTimeImmutable $updatedAt = null,
+        public readonly ?\DateTimeImmutable $deadlineAt = null,
+        public readonly ?string $acquirer = null,
     ) {
+    }
+
+    /**
+     * The payment's custom `variables` — the free-form key/value map you stored with
+     * `CreatePaymentRequest::$variables` / `UpdatePaymentRequest::$variables` — with your keys and
+     * value types exactly as you sent them (`[]` if none).
+     *
+     * This is deliberately a method reading {@see Resource::$raw} rather than a typed property:
+     * the mapper camelCases keys at every depth, so a mapped property would silently rename your
+     * `internal_ref` to `internalRef`. (Consequently it is empty on hand-constructed instances
+     * whose `$raw` was not set.)
+     *
+     * @return array<string, mixed>
+     */
+    public function variables(): array
+    {
+        /** @var array<string, mixed> $variables */
+        $variables = is_array($this->raw['variables'] ?? null) ? $this->raw['variables'] : [];
+
+        return $variables;
     }
 
     /**

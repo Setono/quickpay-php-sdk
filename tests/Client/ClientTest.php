@@ -45,6 +45,22 @@ final class ClientTest extends QuickpayTestCase
     }
 
     #[Test]
+    public function it_sends_the_sdk_version_in_the_user_agent(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/ping', self::fixture('ping.json'));
+
+        $this->client($http)->ping();
+
+        $version = Client::version();
+        self::assertNotSame('', $version);
+        self::assertNotSame('unknown', $version, 'in a Composer-installed checkout the version must be known');
+        self::assertSame(
+            sprintf('Setono-Quickpay-PHP/%s (+https://github.com/Setono/quickpay-php-sdk)', $version),
+            $http->sentRequests[0]->getHeaderLine('User-Agent'),
+        );
+    }
+
+    #[Test]
     public function it_uses_the_quickpay_api_host(): void
     {
         $http = (new ScriptedHttpClient())->on(self::BASE . '/ping', self::fixture('ping.json'));

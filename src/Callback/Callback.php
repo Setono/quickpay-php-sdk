@@ -48,19 +48,26 @@ final class Callback
     ) {
     }
 
+    private ?Payment $payment = null;
+
     public function isPayment(): bool
     {
         return ResourceType::Payment === $this->type;
     }
 
     /**
-     * Deserialize the callback body into a {@see Payment}.
+     * Deserialize the callback body into a {@see Payment}. The result is memoized, so calling this
+     * more than once (a guard, then a handler) does not decode and map the body again.
      *
      * @throws InvalidCallbackException if this callback is not a payment, or the body is not valid JSON
      *                                  / does not fit the Payment DTO
      */
     public function payment(): Payment
     {
+        if (null !== $this->payment) {
+            return $this->payment;
+        }
+
         if (ResourceType::Payment !== $this->type) {
             throw new InvalidCallbackException(sprintf(
                 'This callback is a "%s" resource, not a payment — check the type before calling payment().',
@@ -78,7 +85,7 @@ final class Callback
 
         $payment->raw = $decoded;
 
-        return $payment;
+        return $this->payment = $payment;
     }
 
     /**

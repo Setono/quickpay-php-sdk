@@ -58,12 +58,37 @@ final class Operation
     }
 
     /**
+     * Whether Quickpay has finished processing the operation, i.e. it is no longer `pending` and the
+     * status codes describe the outcome. Until then {@see self::isApproved()} and
+     * {@see self::isDeclined()} are both `false` — nothing is known yet.
+     */
+    public function hasOutcome(): bool
+    {
+        return !$this->pending;
+    }
+
+    /**
      * Whether the operation has completed successfully: it is no longer pending AND Quickpay's
      * status code is `20000` (approved). `false` for a pending operation and for every failed or
      * inconclusive outcome (rejected, 3-D Secure required, gateway error, …).
      */
     public function isApproved(): bool
     {
-        return !$this->pending && self::QP_STATUS_APPROVED === $this->qpStatusCode;
+        return $this->hasOutcome() && self::QP_STATUS_APPROVED === $this->qpStatusCode;
+    }
+
+    /**
+     * Whether the operation completed WITHOUT being approved: rejected by the acquirer (`4xxxx`),
+     * a gateway/acquirer error (`5xxxx`) or — for an authorize — an authentication step still
+     * required (`3xxxx`, 3-D Secure / SCA); read `qpStatusCode` / `qpStatusMsg` (and the acquirer's
+     * `aqStatusCode` / `aqStatusMsg`) for the reason. `false` while the operation is still pending.
+     *
+     * Note that a synchronized capture/refund/cancel that is declined is still a `2xx` response —
+     * the decline lives on the operation, and this is how you read it:
+     * `$payment->latestOperationOfType(OperationType::Capture)?->isDeclined()`.
+     */
+    public function isDeclined(): bool
+    {
+        return $this->hasOutcome() && !$this->isApproved();
     }
 }

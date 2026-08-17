@@ -460,8 +460,8 @@ final class ClientTest extends QuickpayTestCase
             self::assertSame('2026-08-17T10:00:00+00:00', $date->format(\DATE_ATOM));
 
             $json = Client::defaultNormalizerBuilder($cache)->normalizer(\CuyZ\Valinor\Normalizer\Format::json())
-                ->normalize(new CreatePaymentRequest(orderId: 'o', currency: 'DKK', textOnStatement: null));
-            self::assertSame('{"order_id":"o","currency":"DKK"}', $json);
+                ->normalize(new CreatePaymentRequest(orderId: 'o-01', currency: 'DKK', textOnStatement: null));
+            self::assertSame('{"order_id":"o-01","currency":"DKK"}', $json);
         }
         self::removeDir($dir);
     }

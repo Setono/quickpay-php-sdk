@@ -21,6 +21,18 @@ use Setono\Quickpay\Request\Payload;
 final class CreateLinkRequest extends Payload
 {
     /**
+     * The payment methods / groups the window may offer, as the comma-separated string Quickpay
+     * expects (e.g. `"creditcard,mobilepay"`, or `"creditcard,!amex"` to exclude one). Built from
+     * the constructor's `$paymentMethods`, which also accepts a list — see there.
+     */
+    public ?string $paymentMethods;
+
+    /**
+     * @param string|list<string>|null $paymentMethods the methods/groups to offer — either
+     *        Quickpay's comma-separated string (`"creditcard,!amex,mobilepay"`) or a list of them
+     *        (`['creditcard', '!amex', 'mobilepay']`), which is joined for you (a `(string)` cast of
+     *        a list would send the literal `Array` and reject every payment); an empty list means
+     *        "not set"
      * @param array<string, mixed> $brandingConfig
      */
     public function __construct(
@@ -31,7 +43,7 @@ final class CreateLinkRequest extends Payload
         public ?string $cancelUrl = null,
         public ?string $callbackUrl = null,
         public ?string $refererUrl = null,
-        public ?string $paymentMethods = null,
+        string|array|null $paymentMethods = null,
         public ?bool $autoFee = null,
         public ?bool $autoCapture = null,
         public ?string $autoCaptureAt = null,
@@ -48,5 +60,21 @@ final class CreateLinkRequest extends Payload
         public ?bool $invoiceAddressSelection = null,
         public ?bool $shippingAddressSelection = null,
     ) {
+        $this->paymentMethods = self::joinPaymentMethods($paymentMethods);
+    }
+
+    /**
+     * Normalize a list of payment methods/groups to the comma-separated string Quickpay expects;
+     * a string passes through and an empty list becomes `null`.
+     *
+     * @param string|list<string>|null $paymentMethods
+     */
+    public static function joinPaymentMethods(string|array|null $paymentMethods): ?string
+    {
+        if (is_array($paymentMethods)) {
+            return [] === $paymentMethods ? null : implode(',', $paymentMethods);
+        }
+
+        return $paymentMethods;
     }
 }

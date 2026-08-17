@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Setono\Quickpay\Callback;
 
+use CuyZ\Valinor\Cache\Cache;
 use CuyZ\Valinor\MapperBuilder;
 use Psr\Http\Message\ServerRequestInterface;
 use Setono\Quickpay\Client\Client;
@@ -31,10 +32,17 @@ final class CallbackHandler
 
     private readonly MapperBuilder $mapperBuilder;
 
-    public function __construct(string $privateKey, ?MapperBuilder $mapperBuilder = null)
+    /**
+     * @param MapperBuilder|null $mapperBuilder a custom, already SDK-configured builder (see
+     *        {@see Client::configureMapperBuilder()}); usually left `null`
+     * @param Cache|null $cache a Valinor cache for the default builder (the recommended production
+     *        setup, e.g. the same `FileSystemCache` you give the `Client`); ignored when a
+     *        `$mapperBuilder` is passed
+     */
+    public function __construct(string $privateKey, ?MapperBuilder $mapperBuilder = null, ?Cache $cache = null)
     {
         $this->validator = new CallbackValidator($privateKey);
-        $this->mapperBuilder = $mapperBuilder ?? Client::configureMapperBuilder(new MapperBuilder());
+        $this->mapperBuilder = $mapperBuilder ?? Client::defaultMapperBuilder($cache);
     }
 
     public function validator(): CallbackValidator

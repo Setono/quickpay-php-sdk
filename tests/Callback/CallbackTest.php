@@ -346,4 +346,14 @@ final class CallbackTest extends QuickpayTestCase
             $_SERVER = $backup;
         }
     }
+
+    #[Test]
+    public function payment_is_memoized(): void
+    {
+        $handler = new CallbackHandler(self::PRIVATE_KEY);
+        $raw = self::fixture('callback_payment.json');
+        $callback = $handler->handleRaw($raw, $handler->validator()->sign($raw), ResourceType::Payment->value);
+
+        self::assertSame($callback->payment(), $callback->payment());
+    }
 }

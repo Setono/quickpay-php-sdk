@@ -16,6 +16,7 @@ use Setono\Quickpay\Request\Payment\CreateLinkRequest;
 use Setono\Quickpay\Request\Payment\CreatePaymentRequest;
 use Setono\Quickpay\Request\Payment\PaymentsQuery;
 use Setono\Quickpay\Request\Payment\RefundRequest;
+use Setono\Quickpay\Request\Payment\Shopsystem;
 use Setono\Quickpay\Request\Payment\UpdatePaymentRequest;
 use Setono\Quickpay\Response\Payment\Payment;
 use Setono\Quickpay\TestDouble\ScriptedHttpClient;
@@ -408,5 +409,59 @@ final class PaymentsEndpointTest extends QuickpayTestCase
 
         self::assertSame('DELETE', $http->sentRequests[0]->getMethod());
         self::assertSame(self::BASE . '/payments/1234/link', (string) $http->sentRequests[0]->getUri());
+    }
+
+    #[Test]
+    public function it_maps_deadline_and_acquirer_and_exposes_variables_verbatim(): void
+    {
+        $http = (new ScriptedHttpClient())->on(
+            self::BASE . '/payments/1',
+            '{"id":1,"merchant_id":1,"order_id":"o-1","accepted":true,"currency":"DKK","state":"new","operations":[],'
+            . '"deadline_at":"2026-12-31T22:59:59Z","acquirer":"clearhaus",'
+            . '"variables":{"internal_ref":"abc-123","n":42,"flag":true,"nested_map":{"deep_key":1}}}',
+        );
+
+        $payment = $this->client($http)->payments()->getById(1);
+
+        self::assertSame('2026-12-31T22:59:59+00:00', $payment->deadlineAt?->format(\DATE_ATOM));
+        self::assertSame('clearhaus', $payment->acquirer);
+        // Keys and value types exactly as sent — NOT camelCased like the typed properties.
+        self::assertSame(
+            ['internal_ref' => 'abc-123', 'n' => 42, 'flag' => true, 'nested_map' => ['deep_key' => 1]],
+            $payment->variables(),
+        );
+    }
+
+    #[Test]
+    public function variables_are_empty_when_absent_or_empty(): void
+    {
+        $http = (new ScriptedHttpClient())
+            ->on(self::BASE . '/payments/1', '{"id":1,"merchant_id":1,"order_id":"o-1","currency":"DKK","state":"new","operations":[],"variables":{}}')
+            ->on(self::BASE . '/payments/2', '{"id":2,"merchant_id":1,"order_id":"o-2","currency":"DKK","state":"new","operations":[]}')
+        ;
+        $payments = $this->client($http)->payments();
+
+        self::assertSame([], $payments->getById(1)->variables());
+        self::assertSame([], $payments->getById(2)->variables());
+        self::assertNull($payments->getById(2)->deadlineAt);
+        self::assertNull($payments->getById(2)->acquirer);
+        self::assertSame([], (new Payment(id: 3, orderId: 'o', currency: 'DKK', state: 'new', merchantId: 1))->variables());
+    }
+
+    #[Test]
+    public function it_sends_the_shopsystem_on_create(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/payments', self::fixture('payment.json'));
+
+        $this->client($http)->payments()->create(new CreatePaymentRequest(
+            orderId: 'order-0001',
+            currency: 'DKK',
+            shopsystem: new Shopsystem(name: 'acme/shop-plugin', version: '2.3.4'),
+        ));
+
+        self::assertSame(
+            '{"order_id":"order-0001","currency":"DKK","shopsystem":{"name":"acme\/shop-plugin","version":"2.3.4"}}',
+            (string) $http->sentRequests[0]->getBody(),
+        );
     }
 }

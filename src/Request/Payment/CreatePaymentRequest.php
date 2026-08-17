@@ -11,7 +11,8 @@ use Setono\Quickpay\Request\Payload;
  *
  * `orderId` (4–20 characters) and `currency` are required — verified against the live API, which
  * rejects a create missing either (`order_id` length validation / `currency: "is missing"`). All
- * other fields are optional.
+ * other fields are optional. `shopsystem` lets an integration identify itself (name/version) on the
+ * payment.
  */
 final class CreatePaymentRequest extends Payload
 {
@@ -29,6 +30,7 @@ final class CreatePaymentRequest extends Payload
         public ?Address $shippingAddress = null,
         public array $basket = [],
         public ?Shipping $shipping = null,
+        public ?Shopsystem $shopsystem = null,
     ) {
     }
 }

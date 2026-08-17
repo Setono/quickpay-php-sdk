@@ -396,4 +396,15 @@ final class PaymentsEndpointTest extends QuickpayTestCase
 
         self::assertNull($this->client($http)->payments()->findByOrderId('o-'));
     }
+
+    #[Test]
+    public function it_deletes_the_payment_link(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234/link', '', 204);
+
+        $this->client($http)->payments()->deleteLink(1234);
+
+        self::assertSame('DELETE', $http->sentRequests[0]->getMethod());
+        self::assertSame(self::BASE . '/payments/1234/link', (string) $http->sentRequests[0]->getUri());
+    }
 }

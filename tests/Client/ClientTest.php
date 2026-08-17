@@ -23,6 +23,7 @@ use Setono\Quickpay\Exception\UnexpectedStatusCodeException;
 use Setono\Quickpay\Exception\ValidationException;
 use Setono\Quickpay\QuickpayTestCase;
 use Setono\Quickpay\Request\CollectionRequestOptions;
+use Setono\Quickpay\Request\Payment\Shipping;
 use Setono\Quickpay\TestDouble\ScriptedHttpClient;
 
 final class ClientTest extends QuickpayTestCase
@@ -307,6 +308,101 @@ final class ClientTest extends QuickpayTestCase
 
         self::assertSame(200, $response->getStatusCode());
         self::assertSame('Basic ' . base64_encode(':' . self::API_KEY), $http->sentRequests[0]->getHeaderLine('Authorization'));
+    }
+
+    #[Test]
+    public function it_deletes_and_returns_an_empty_array_for_204_no_content(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234/link', '', 204);
+
+        self::assertSame([], $this->client($http)->delete('payments/1234/link'));
+
+        $request = $http->sentRequests[0];
+        self::assertSame('DELETE', $request->getMethod());
+        self::assertSame(self::BASE . '/payments/1234/link', (string) $request->getUri());
+        self::assertSame('Basic ' . base64_encode(':' . self::API_KEY), $request->getHeaderLine('Authorization'));
+        self::assertFalse($request->hasHeader('Content-Type'));
+    }
+
+    #[Test]
+    public function it_decodes_a_delete_response_body_when_there_is_one(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/things/1', '{"deleted":true}');
+
+        self::assertSame(['deleted' => true], $this->client($http)->delete('things/1'));
+    }
+
+    #[Test]
+    public function it_treats_204_no_content_as_an_empty_body_on_every_verb(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/things', '', 204);
+
+        self::assertSame([], $this->client($http)->post('things', ['a' => 1]));
+    }
+
+    #[Test]
+    public function it_still_rejects_an_empty_2xx_body_that_is_not_a_204(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/things', '', 200);
+
+        $this->expectException(MalformedResponseException::class);
+
+        $this->client($http)->post('things', ['a' => 1]);
+    }
+
+    #[Test]
+    public function it_sends_a_plain_array_body_verbatim(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/subscriptions', '{"id":1}');
+
+        $this->client($http)->post('subscriptions', [
+            'order_id' => 'sub-0001',
+            'currency' => 'DKK',
+            'description' => 'Monthly plan',
+            'camelCaseKey' => null, // arrays are NOT snake_cased or null-stripped — they go out as given
+            'variables' => ['plan' => 'gold'],
+        ]);
+
+        $request = $http->sentRequests[0];
+        self::assertSame('application/json', $request->getHeaderLine('Content-Type'));
+        self::assertSame(
+            '{"order_id":"sub-0001","currency":"DKK","description":"Monthly plan","camelCaseKey":null,"variables":{"plan":"gold"}}',
+            (string) $request->getBody(),
+        );
+    }
+
+    #[Test]
+    public function it_transforms_payloads_and_dates_nested_inside_an_array_body(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/things', '{"id":1}');
+
+        $this->client($http)->put('things', [
+            'shipping' => new Shipping(trackingNumber: 'TN-1'), // Payload → snake_case + null-stripped
+            'deadline_at' => new \DateTimeImmutable('2026-08-17T10:00:00+00:00'),
+        ]);
+
+        self::assertSame(
+            '{"shipping":{"tracking_number":"TN-1"},"deadline_at":"2026-08-17T10:00:00+00:00"}',
+            (string) $http->sentRequests[0]->getBody(),
+        );
+    }
+
+    #[Test]
+    public function it_sends_an_empty_json_object_for_an_empty_array_body(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/things', '{"id":1}');
+
+        $this->client($http)->patch('things', []);
+
+        self::assertSame('{}', (string) $http->sentRequests[0]->getBody());
+    }
+
+    #[Test]
+    public function it_refuses_to_delete_on_a_foreign_host(): void
+    {
+        $this->expectException(InvalidUrlException::class);
+
+        $this->client(new ScriptedHttpClient())->delete('https://evil.example/payments/1/link');
     }
 
     #[Test]

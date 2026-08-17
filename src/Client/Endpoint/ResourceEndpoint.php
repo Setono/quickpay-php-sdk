@@ -20,6 +20,7 @@ use Setono\Quickpay\Response\Resource;
  *  - {@see self::putSubResource()} — PUT a typed body to `"{getPath()}/{$id}/{$sub}"`, returning
  *                                    the raw decoded array (for sub-resources mapped to a class
  *                                    other than the endpoint's item class, e.g. the payment link).
+ *  - {@see self::deleteSubResource()} — DELETE `"{getPath()}/{$id}/{$sub}"`.
  *
  * @template T of Resource
  */
@@ -104,5 +105,13 @@ abstract class ResourceEndpoint extends Endpoint
     protected function putSubResource(int|string $id, string $sub, Payload $request): array
     {
         return $this->client->put(sprintf('%s/%s/%s', static::getPath(), $id, $sub), $request);
+    }
+
+    /**
+     * DELETE `"{getPath()}/{$id}/{$sub}"` (e.g. the payment link). Quickpay answers `204 No Content`.
+     */
+    protected function deleteSubResource(int|string $id, string $sub): void
+    {
+        $this->client->delete(sprintf('%s/%s/%s', static::getPath(), $id, $sub));
     }
 }

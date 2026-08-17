@@ -134,19 +134,26 @@ final class Client implements ClientInterface
         return self::decodeJson($request, $this->request($request));
     }
 
-    public function post(string $uri, ?Payload $body = null): array
+    public function post(string $uri, Payload|array|null $body = null): array
     {
         return $this->send('POST', $uri, $body);
     }
 
-    public function put(string $uri, ?Payload $body = null): array
+    public function put(string $uri, Payload|array|null $body = null): array
     {
         return $this->send('PUT', $uri, $body);
     }
 
-    public function patch(string $uri, ?Payload $body = null): array
+    public function patch(string $uri, Payload|array|null $body = null): array
     {
         return $this->send('PATCH', $uri, $body);
+    }
+
+    public function delete(string $uri): array
+    {
+        $request = $this->requestFactory->createRequest('DELETE', $this->resolveUrl($uri));
+
+        return self::decodeJson($request, $this->request($request));
     }
 
     public function ping(): bool
@@ -226,18 +233,23 @@ final class Client implements ClientInterface
     }
 
     /**
+     * @param Payload|array<string, mixed>|null $body
+     *
      * @return array<array-key, mixed>
      */
-    private function send(string $method, string $uri, ?Payload $body): array
+    private function send(string $method, string $uri, Payload|array|null $body): array
     {
         $request = $this->requestFactory->createRequest($method, $this->resolveUrl($uri));
 
         if (null !== $body) {
+            // Both shapes go through the SDK's normalizer: a Payload gets snake_cased + null-stripped
+            // by the Payload transformer; a plain array is encoded as given (its keys untouched), but
+            // any Payload / \DateTimeInterface values nested inside it are still transformed.
             $json = $this->normalizerBuilder->normalizer(Format::json())->normalize($body);
 
-            // A Payload whose optional fields are all unset normalizes to an empty PHP array, which
-            // JSON-encodes as `[]` — the Quickpay API rejects that shape (`body: "is invalid"`); an
-            // empty body must be the empty JSON object.
+            // A Payload whose optional fields are all unset (or an empty array) normalizes to an
+            // empty PHP array, which JSON-encodes as `[]` — the Quickpay API rejects that shape
+            // (`body: "is invalid"`); an empty body must be the empty JSON object.
             if ('[]' === $json) {
                 $json = '{}';
             }
@@ -337,6 +349,11 @@ final class Client implements ClientInterface
      */
     private static function decodeJson(RequestInterface $request, ResponseInterface $response): array
     {
+        // 204 No Content has no body by definition (e.g. `DELETE /payments/{id}/link`).
+        if (204 === $response->getStatusCode()) {
+            return [];
+        }
+
         $body = (string) $response->getBody();
 
         // Strip query + fragment so consumer-supplied secrets don't land in exception messages.

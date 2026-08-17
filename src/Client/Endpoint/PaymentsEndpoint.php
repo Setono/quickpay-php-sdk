@@ -8,6 +8,7 @@ use Setono\Quickpay\Request\Payment\AuthorizePaymentRequest;
 use Setono\Quickpay\Request\Payment\CaptureRequest;
 use Setono\Quickpay\Request\Payment\CreateLinkRequest;
 use Setono\Quickpay\Request\Payment\CreatePaymentRequest;
+use Setono\Quickpay\Request\Payment\PaymentsQuery;
 use Setono\Quickpay\Request\Payment\RefundRequest;
 use Setono\Quickpay\Request\Payment\UpdatePaymentRequest;
 use Setono\Quickpay\Response\Payment\Link;
@@ -19,6 +20,10 @@ use Setono\Quickpay\Response\Payment\Payment;
  * Amounts passed to `authorize` / `capture` / `refund` are integers in the smallest unit of the
  * payment's currency (e.g. `1000` = 10.00 DKK).
  *
+ * Listing (`getPage()` / `paginate()`) accepts a {@see PaymentsQuery} to filter by `order_id`,
+ * state, acceptance, creation time, etc. — see {@see self::findByOrderId()} for the common
+ * "look up the payment for an order" case.
+ *
  * @extends CollectionEndpoint<Payment>
  */
 final class PaymentsEndpoint extends CollectionEndpoint
@@ -29,6 +34,27 @@ final class PaymentsEndpoint extends CollectionEndpoint
     public function getById(int $id): Payment
     {
         return $this->getOne($id);
+    }
+
+    /**
+     * Find the payment created for the given `order_id`, or `null` if there is none.
+     *
+     * `GET /payments?order_id={orderId}`. The API matches `order_id` exactly (case-sensitive) and
+     * enforces it to be unique per account — a second `create()` with the same `order_id` fails
+     * with a `ValidationException` ("already exists on another payment") — so this is the
+     * building block for creating payments idempotently: look the order up first, and only
+     * `create()` when nothing is found.
+     */
+    public function findByOrderId(string $orderId): ?Payment
+    {
+        foreach ($this->getPage(new PaymentsQuery(orderId: $orderId, pageSize: 1)) as $payment) {
+            // Defensive: never hand back a different order, whatever the API's matching rules become.
+            if ($payment->orderId === $orderId) {
+                return $payment;
+            }
+        }
+
+        return null;
     }
 
     /**

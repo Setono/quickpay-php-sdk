@@ -7,6 +7,7 @@ namespace Setono\Quickpay\Client\Endpoint;
 use PHPUnit\Framework\Attributes\Test;
 use Setono\Quickpay\QuickpayTestCase;
 use Setono\Quickpay\Request\CollectionRequestOptions;
+use Setono\Quickpay\Request\Payment\PaymentsQuery;
 use Setono\Quickpay\Response\Payment\Payment;
 use Setono\Quickpay\TestDouble\ScriptedHttpClient;
 
@@ -37,6 +38,21 @@ final class PaginationTest extends QuickpayTestCase
 
         self::assertCount(0, $items);
         self::assertCount(1, $http->sentRequests);
+    }
+
+    #[Test]
+    public function it_carries_typed_filters_across_pages(): void
+    {
+        $http = (new ScriptedHttpClient())
+            ->on(self::BASE . '/payments?accepted=true&page=1&page_size=2', self::payments(1, 2))
+            ->on(self::BASE . '/payments?accepted=true&page=2&page_size=2', self::payments(3))
+        ;
+
+        $items = iterator_to_array($this->client($http)->payments()->paginate(new PaymentsQuery(accepted: true, pageSize: 2)), false);
+
+        self::assertCount(3, $items);
+        self::assertCount(2, $http->sentRequests);
+        self::assertSame(self::BASE . '/payments?accepted=true&page=2&page_size=2', (string) $http->sentRequests[1]->getUri());
     }
 
     private static function payments(int ...$ids): string

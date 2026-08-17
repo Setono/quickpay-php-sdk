@@ -10,8 +10,14 @@ namespace Setono\Quickpay\Request;
  * Quickpay paginates list endpoints with the `page` and `page_size` query parameters and returns a
  * bare JSON array with no total-count headers, so {@see toArray()} maps directly to those two query
  * parameters.
+ *
+ * Resource-specific subclasses add typed filters on top — e.g.
+ * {@see \Setono\Quickpay\Request\Payment\PaymentsQuery} for `GET /payments` — merging them into
+ * {@see toArray()} and overriding {@see withPage()} / {@see withPageSize()} so the filters are
+ * carried along while paginating. Subclassing is an SDK-internal extension point; consumers
+ * should use the concrete query classes.
  */
-final class CollectionRequestOptions
+class CollectionRequestOptions
 {
     public function __construct(
         public readonly int $page = 1,
@@ -26,17 +32,26 @@ final class CollectionRequestOptions
         }
     }
 
+    /**
+     * A copy for another page (subclasses override to carry their filters along).
+     */
     public function withPage(int $page): self
     {
         return new self($page, $this->pageSize);
     }
 
+    /**
+     * A copy with another page size (subclasses override to carry their filters along).
+     */
     public function withPageSize(int $pageSize): self
     {
         return new self($this->page, $pageSize);
     }
 
     /**
+     * The query parameters for the list request. Subclasses merge their filters in and keep
+     * `page` / `page_size` as the last two entries.
+     *
      * @return array<string, scalar|null>
      */
     public function toArray(): array

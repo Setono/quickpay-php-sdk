@@ -145,6 +145,41 @@ foreach ($client->payments()->paginate(new CollectionRequestOptions(pageSize: 50
 }
 ```
 
+To filter the list, pass a `PaymentsQuery` instead — it carries the same `page`/`pageSize` plus the
+typed filters `GET /payments` supports (`orderId`, `state`, `accepted`, `minTime`/`maxTime`,
+`acquirer`, `fraudSuspected`, `id`, `sortBy`/`sortDir`, `operationsSize`; anything else via `extra`):
+
+```php
+use Setono\Quickpay\Enum\PaymentState;
+use Setono\Quickpay\Request\Payment\PaymentsQuery;
+
+$query = new PaymentsQuery(
+    state: PaymentState::New,          // authorized, not yet captured
+    accepted: true,
+    minTime: new \DateTimeImmutable('-7 days'),
+    pageSize: 100,
+);
+
+foreach ($client->payments()->paginate($query) as $payment) {
+    // ...
+}
+```
+
+#### Finding the payment for an order (idempotent create)
+
+`order_id` is unique per Quickpay account — creating a second payment with the same `order_id`
+fails with a `ValidationException` ("already exists on another payment"). So when a checkout can be
+retried (double click, page reload, a crashed request after Quickpay created the payment), look the
+order up first and only create when nothing is found:
+
+```php
+$payment = $client->payments()->findByOrderId($orderId)
+    ?? $client->payments()->create(new CreatePaymentRequest(orderId: $orderId, currency: 'DKK'));
+```
+
+`findByOrderId()` matches the `order_id` exactly (case-sensitively) and returns `null` when there is
+no such payment.
+
 ### Callbacks
 
 Quickpay notifies your `callbackUrl` by POSTing the payment object and signing it with a

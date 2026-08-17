@@ -14,6 +14,7 @@ use Setono\Quickpay\Request\Payment\BasketItem;
 use Setono\Quickpay\Request\Payment\CaptureRequest;
 use Setono\Quickpay\Request\Payment\CreateLinkRequest;
 use Setono\Quickpay\Request\Payment\CreatePaymentRequest;
+use Setono\Quickpay\Request\Payment\PaymentsQuery;
 use Setono\Quickpay\Request\Payment\RefundRequest;
 use Setono\Quickpay\Request\Payment\UpdatePaymentRequest;
 use Setono\Quickpay\Response\Payment\Payment;
@@ -324,5 +325,64 @@ final class PaymentsEndpointTest extends QuickpayTestCase
         $first = $page->first();
         self::assertInstanceOf(Payment::class, $first);
         self::assertSame(1, $first->id);
+    }
+
+    #[Test]
+    public function it_lists_payments_with_typed_filters(): void
+    {
+        $http = (new ScriptedHttpClient())->on(
+            self::BASE . '/payments?state=new&accepted=true&min_time=2026-08-01%2000%3A00%3A00%20%2B0000&sort_dir=desc&page=2&page_size=5',
+            self::fixture('payments_list.json'),
+        );
+
+        $page = $this->client($http)->payments()->getPage(new PaymentsQuery(
+            state: PaymentState::New,
+            accepted: true,
+            minTime: new \DateTimeImmutable('2026-08-01 00:00:00', new \DateTimeZone('UTC')),
+            sortDir: 'desc',
+            page: 2,
+            pageSize: 5,
+        ));
+
+        self::assertCount(2, $page);
+        self::assertSame(2, $page->page);
+        self::assertSame(5, $page->pageSize);
+    }
+
+    #[Test]
+    public function it_finds_a_payment_by_order_id(): void
+    {
+        $http = (new ScriptedHttpClient())->on(
+            self::BASE . '/payments?order_id=o-2&page=1&page_size=1',
+            '[{"id":2,"merchant_id":1,"order_id":"o-2","accepted":true,"currency":"DKK","state":"processed","test_mode":true,"operations":[]}]',
+        );
+
+        $payment = $this->client($http)->payments()->findByOrderId('o-2');
+
+        self::assertInstanceOf(Payment::class, $payment);
+        self::assertSame(2, $payment->id);
+        self::assertSame('o-2', $payment->orderId);
+        self::assertSame('o-2', $payment->raw['order_id']);
+    }
+
+    #[Test]
+    public function it_returns_null_when_no_payment_has_the_order_id(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/payments?order_id=nope&page=1&page_size=1', '[]');
+
+        self::assertNull($this->client($http)->payments()->findByOrderId('nope'));
+    }
+
+    #[Test]
+    public function it_never_returns_a_payment_for_a_different_order_id(): void
+    {
+        // The live API matches order_id exactly; should that ever loosen (prefix / case-insensitive
+        // matching), findByOrderId() must still only hand back the exact order.
+        $http = (new ScriptedHttpClient())->on(
+            self::BASE . '/payments?order_id=o-&page=1&page_size=1',
+            self::fixture('payments_list.json'),
+        );
+
+        self::assertNull($this->client($http)->payments()->findByOrderId('o-'));
     }
 }

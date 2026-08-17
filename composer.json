@@ -1,14 +1,30 @@
 {
     "name": "setono/quickpay-php-sdk",
-    "description": "Consume the Quickpay API with this PHP SDK",
+    "description": "PHP SDK for the Quickpay API: payments, payment-window links, and signed callback (webhook) verification",
     "license": "MIT",
     "type": "library",
+    "keywords": [
+        "quickpay",
+        "payment",
+        "payments",
+        "payment-gateway",
+        "webhook",
+        "callback",
+        "psr-18",
+        "sdk",
+        "api-client"
+    ],
     "authors": [
         {
             "name": "Joachim Løvgaard",
             "email": "joachim@loevgaard.dk"
         }
     ],
+    "homepage": "https://github.com/Setono/quickpay-php-sdk",
+    "support": {
+        "issues": "https://github.com/Setono/quickpay-php-sdk/issues",
+        "source": "https://github.com/Setono/quickpay-php-sdk"
+    },
     "require": {
         "php": ">=8.1",
         "cuyz/valinor": "^2.2.2",

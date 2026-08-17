@@ -62,42 +62,43 @@ interface ClientInterface
      * `$body` may be a typed {@see Payload} (normalized with snake_case keys and `null`s stripped)
      * or, for endpoints the SDK does not model, a plain array — encoded as given, so use the
      * snake_case keys from the Quickpay docs (nested `Payload` / `\DateTimeInterface` values are
-     * still transformed). `null` sends an empty body (operations such as cancel take no parameters).
+     * still transformed). Leave it out for operations that take no parameters (cancel, renew, …):
+     * an empty body is sent as the empty JSON object `{}`, which the API accepts.
      *
-     * @param Payload|array<string, mixed>|null $body
+     * @param Payload|array<string, mixed> $body
      *
      * @return array<array-key, mixed>
      *
      * @throws TransportException if the request could not be sent / no response was received (wraps the PSR-18 exception)
      * @throws QuickpayException if the response is non-2xx, or the body is not valid JSON
      */
-    public function post(string $uri, Payload|array|null $body = null): array;
+    public function post(string $uri, Payload|array $body = []): array;
 
     /**
      * PUT to `$uri` and return the decoded JSON body. Used for creating (or updating) a payment
      * link. The `$body` is normalized exactly as in {@see self::post()}.
      *
-     * @param Payload|array<string, mixed>|null $body
+     * @param Payload|array<string, mixed> $body
      *
      * @return array<array-key, mixed>
      *
      * @throws TransportException if the request could not be sent / no response was received (wraps the PSR-18 exception)
      * @throws QuickpayException if the response is non-2xx, or the body is not valid JSON
      */
-    public function put(string $uri, Payload|array|null $body = null): array;
+    public function put(string $uri, Payload|array $body = []): array;
 
     /**
      * PATCH to `$uri` and return the decoded JSON body. Used for updating a payment. The `$body` is
      * normalized exactly as in {@see self::post()}.
      *
-     * @param Payload|array<string, mixed>|null $body
+     * @param Payload|array<string, mixed> $body
      *
      * @return array<array-key, mixed>
      *
      * @throws TransportException if the request could not be sent / no response was received (wraps the PSR-18 exception)
      * @throws QuickpayException if the response is non-2xx, or the body is not valid JSON
      */
-    public function patch(string $uri, Payload|array|null $body = null): array;
+    public function patch(string $uri, Payload|array $body = []): array;
 
     /**
      * DELETE `$uri` and return the decoded JSON body — `[]` for a `204 No Content` response, which

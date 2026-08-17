@@ -139,7 +139,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
      */
     public function cancel(int $id, ?bool $synchronized = null): Payment
     {
-        return $this->postOperation($id, 'cancel', null, $synchronized);
+        return $this->postOperation($id, 'cancel', [], $synchronized);
     }
 
     /**

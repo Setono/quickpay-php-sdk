@@ -74,7 +74,8 @@ abstract class ResourceEndpoint extends Endpoint
 
     /**
      * POST to `"{getPath()}/{$id}/{$action}"` (e.g. authorize, capture, refund, cancel) and map the
-     * returned resource. The `$request` body is optional — operations such as cancel take no body.
+     * returned resource. The `$request` body is optional — operations such as cancel take no
+     * parameters, and are sent an empty JSON object.
      *
      * Quickpay processes operations asynchronously by default and returns a `202 Accepted` with the
      * operation still pending — the 202 body is the full resource, but only a snapshot taken when
@@ -84,9 +85,11 @@ abstract class ResourceEndpoint extends Endpoint
      * (its final state) instead. When `$synchronized` is `null` the client-wide default
      * ({@see \Setono\Quickpay\Client\ClientInterface::isSynchronized()}) applies.
      *
+     * @param Payload|array<string, mixed> $request
+     *
      * @return T
      */
-    protected function postOperation(int|string $id, string $action, ?Payload $request = null, ?bool $synchronized = null): Resource
+    protected function postOperation(int|string $id, string $action, Payload|array $request = [], ?bool $synchronized = null): Resource
     {
         $path = sprintf('%s/%s/%s', static::getPath(), $id, $action);
         if ($synchronized ?? $this->client->isSynchronized()) {

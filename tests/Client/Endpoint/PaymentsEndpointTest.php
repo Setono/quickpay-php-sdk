@@ -139,8 +139,9 @@ final class PaymentsEndpointTest extends QuickpayTestCase
     }
 
     #[Test]
-    public function it_cancels_without_a_body(): void
+    public function it_cancels_with_an_empty_json_object_body(): void
     {
+        // cancel takes no parameters; the API accepts `{}` (verified live) but rejects `[]`.
         $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234/cancel', self::fixture('payment.json'));
 
         $payment = $this->client($http)->payments()->cancel(1234);
@@ -150,7 +151,8 @@ final class PaymentsEndpointTest extends QuickpayTestCase
         $sent = $http->sentRequests[0];
         self::assertSame('POST', $sent->getMethod());
         self::assertSame(self::BASE . '/payments/1234/cancel', (string) $sent->getUri());
-        self::assertSame('', (string) $sent->getBody());
+        self::assertSame('{}', (string) $sent->getBody());
+        self::assertSame('application/json', $sent->getHeaderLine('Content-Type'));
     }
 
     #[Test]

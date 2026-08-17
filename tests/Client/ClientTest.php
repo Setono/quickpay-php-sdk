@@ -388,13 +388,19 @@ final class ClientTest extends QuickpayTestCase
     }
 
     #[Test]
-    public function it_sends_an_empty_json_object_for_an_empty_array_body(): void
+    public function it_sends_an_empty_json_object_when_no_body_is_given(): void
     {
-        $http = (new ScriptedHttpClient())->on(self::BASE . '/things', '{"id":1}');
+        $http = (new ScriptedHttpClient())
+            ->on(self::BASE . '/things', '{"id":1}')
+            ->on(self::BASE . '/payments/1/renew', '{"id":1}')
+        ;
+        $client = $this->client($http);
 
-        $this->client($http)->patch('things', []);
+        $client->patch('things', []);
+        $client->post('payments/1/renew'); // no body argument at all — the escape-hatch shape for renew/cancel
 
         self::assertSame('{}', (string) $http->sentRequests[0]->getBody());
+        self::assertSame('{}', (string) $http->sentRequests[1]->getBody());
     }
 
     #[Test]

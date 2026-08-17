@@ -52,4 +52,21 @@ final class CollectionRequestOptionsTest extends TestCase
         self::assertSame(1, $opts->page);
         self::assertSame(20, $opts->pageSize);
     }
+
+    #[Test]
+    public function the_withers_validate_too(): void
+    {
+        $opts = new CollectionRequestOptions();
+
+        try {
+            $opts->withPage(0);
+            self::fail('Expected an InvalidArgumentException.');
+        } catch (\InvalidArgumentException $e) {
+            self::assertSame('Expected $page to be at least 1, got 0.', $e->getMessage());
+        }
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Expected $pageSize to be at least 1, got -5.');
+        $opts->withPageSize(-5);
+    }
 }

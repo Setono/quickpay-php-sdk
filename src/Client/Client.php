@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Setono\Quickpay\Client;
 
+use CuyZ\Valinor\Cache\Cache;
 use CuyZ\Valinor\MapperBuilder;
 use CuyZ\Valinor\Normalizer\Format;
 use CuyZ\Valinor\NormalizerBuilder;
@@ -56,9 +57,16 @@ final class Client implements ClientInterface
     private readonly NormalizerBuilder $normalizerBuilder;
 
     /**
+     * Only `$apiKey` is required; everything else is discovered or defaulted.
+     *
      * @param bool $synchronized the client-wide default for the `$synchronized` flag on the payment
      *        operation methods (authorize/capture/refund/cancel); a non-null per-call argument
      *        overrides it
+     * @param Cache|null $cache a Valinor cache (e.g. `new FileSystemCache('/path/to/cache')`) for the
+     *        SDK's default mapper and normalizer — the recommended production setup. Ignored for a
+     *        builder you pass in explicitly (`$mapperBuilder` / `$normalizerBuilder`): those are
+     *        used as given, so configure their cache yourself (and remember to run them through
+     *        {@see self::configureMapperBuilder()} / {@see self::registerNormalizerTransformers()}).
      */
     public function __construct(
         private readonly string $apiKey,
@@ -68,12 +76,13 @@ final class Client implements ClientInterface
         ?MapperBuilder $mapperBuilder = null,
         ?NormalizerBuilder $normalizerBuilder = null,
         private readonly bool $synchronized = false,
+        ?Cache $cache = null,
     ) {
         $this->httpClient = $httpClient ?? Psr18ClientDiscovery::find();
         $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
-        $this->mapperBuilder = $mapperBuilder ?? self::defaultMapperBuilder();
-        $this->normalizerBuilder = $normalizerBuilder ?? self::defaultNormalizerBuilder();
+        $this->mapperBuilder = $mapperBuilder ?? self::defaultMapperBuilder($cache);
+        $this->normalizerBuilder = $normalizerBuilder ?? self::defaultNormalizerBuilder($cache);
     }
 
     public function isSynchronized(): bool
@@ -169,14 +178,17 @@ final class Client implements ClientInterface
     }
 
     /**
-     * Apply the SDK's full mapper configuration to a consumer-supplied {@see MapperBuilder}. This is
-     * the entry point consumers SHOULD use when wiring a custom builder (e.g. with a `FileSystemCache`
-     * for production):
+     * Apply the SDK's full mapper configuration to a consumer-supplied {@see MapperBuilder}. Use
+     * this when you need to wire a custom builder — e.g. to share one cached builder across several
+     * libraries; for the plain "cache in production" case, prefer the `cache:` constructor argument:
      *
      * ```
      * $custom = Client::configureMapperBuilder((new MapperBuilder())->withCache($cache));
      * $client = new Client('API_KEY', mapperBuilder: $custom);
      * ```
+     *
+     * A builder passed to the constructor is used as given, so forgetting this step means the
+     * response DTOs no longer map (dates, extra keys) — that's why the `cache:` argument exists.
      */
     public static function configureMapperBuilder(MapperBuilder $builder): MapperBuilder
     {
@@ -194,7 +206,8 @@ final class Client implements ClientInterface
     /**
      * Append the SDK's `Payload` normalizer transformer (null-skipping + snake_case keys) and the
      * `\DateTimeInterface` → DATE_ATOM transformer to a consumer-supplied {@see NormalizerBuilder}.
-     * Use this when wiring a custom builder (e.g. with a cache):
+     * Use this when wiring a custom builder (for the plain "cache in production" case, prefer the
+     * `cache:` constructor argument):
      *
      * ```
      * $custom = Client::registerNormalizerTransformers((new NormalizerBuilder())->withCache($cache));
@@ -259,14 +272,31 @@ final class Client implements ClientInterface
         return self::decodeJson($request, $this->request($request));
     }
 
-    private static function defaultMapperBuilder(): MapperBuilder
+    /**
+     * The SDK's fully configured default {@see MapperBuilder}, optionally cached. Also used by the
+     * callback side ({@see \Setono\Quickpay\Callback\CallbackHandler}).
+     */
+    public static function defaultMapperBuilder(?Cache $cache = null): MapperBuilder
     {
-        return self::configureMapperBuilder(new MapperBuilder());
+        $builder = new MapperBuilder();
+        if (null !== $cache) {
+            $builder = $builder->withCache($cache);
+        }
+
+        return self::configureMapperBuilder($builder);
     }
 
-    private static function defaultNormalizerBuilder(): NormalizerBuilder
+    /**
+     * The SDK's fully configured default {@see NormalizerBuilder}, optionally cached.
+     */
+    public static function defaultNormalizerBuilder(?Cache $cache = null): NormalizerBuilder
     {
-        return self::registerNormalizerTransformers(new NormalizerBuilder());
+        $builder = new NormalizerBuilder();
+        if (null !== $cache) {
+            $builder = $builder->withCache($cache);
+        }
+
+        return self::registerNormalizerTransformers($builder);
     }
 
     /**

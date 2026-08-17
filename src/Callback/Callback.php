@@ -109,6 +109,6 @@ final class Callback
 
     private function mapperBuilder(): MapperBuilder
     {
-        return $this->mapperBuilder ?? Client::configureMapperBuilder(new MapperBuilder());
+        return $this->mapperBuilder ?? Client::defaultMapperBuilder();
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Setono\Quickpay\Client;
 
+use CuyZ\Valinor\Cache\FileSystemCache;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -23,6 +24,7 @@ use Setono\Quickpay\Exception\UnexpectedStatusCodeException;
 use Setono\Quickpay\Exception\ValidationException;
 use Setono\Quickpay\QuickpayTestCase;
 use Setono\Quickpay\Request\CollectionRequestOptions;
+use Setono\Quickpay\Request\Payment\CreatePaymentRequest;
 use Setono\Quickpay\Request\Payment\Shipping;
 use Setono\Quickpay\TestDouble\ScriptedHttpClient;
 
@@ -409,6 +411,43 @@ final class ClientTest extends QuickpayTestCase
         $this->expectException(InvalidUrlException::class);
 
         $this->client(new ScriptedHttpClient())->delete('https://evil.example/payments/1/link');
+    }
+
+    #[Test]
+    public function it_uses_the_given_cache_for_the_default_mapper_and_normalizer(): void
+    {
+        $dir = self::tempDir();
+        $http = (new ScriptedHttpClient())
+            ->on(self::BASE . '/payments/1234', self::fixture('payment.json'))
+            ->on(self::BASE . '/payments', self::fixture('payment.json'))
+        ;
+        $psr17 = new Psr17Factory();
+        $client = new Client(self::API_KEY, httpClient: $http, requestFactory: $psr17, streamFactory: $psr17, cache: new FileSystemCache($dir));
+
+        // Mapping (response) and normalizing (request) both go through the cached builders.
+        self::assertSame(1234, $client->payments()->getById(1234)->id);
+        self::assertSame(1234, $client->payments()->create(new CreatePaymentRequest(orderId: 'order-0001', currency: 'DKK'))->id);
+
+        self::assertDirectoryExists($dir, 'the cache directory should have been populated');
+        self::removeDir($dir);
+    }
+
+    #[Test]
+    public function the_default_builders_are_fully_configured_with_or_without_a_cache(): void
+    {
+        // Both must map the SDK's date formats and tolerate unknown keys — that is the whole point
+        // of offering `cache:` instead of asking consumers to wire builders themselves.
+        $dir = self::tempDir();
+        foreach ([null, new FileSystemCache($dir)] as $cache) {
+            $mapper = Client::defaultMapperBuilder($cache)->mapper();
+            $date = $mapper->map(\DateTimeImmutable::class, '2026-08-17T10:00:00.123Z');
+            self::assertSame('2026-08-17T10:00:00+00:00', $date->format(\DATE_ATOM));
+
+            $json = Client::defaultNormalizerBuilder($cache)->normalizer(\CuyZ\Valinor\Normalizer\Format::json())
+                ->normalize(new CreatePaymentRequest(orderId: 'o', currency: 'DKK', textOnStatement: null));
+            self::assertSame('{"order_id":"o","currency":"DKK"}', $json);
+        }
+        self::removeDir($dir);
     }
 
     #[Test]

@@ -373,16 +373,28 @@ try {
 
 ## Production usage
 
-Valinor's mapping/normalization is fast but benefits from a cache in production. Wrap your own
-builders with the SDK's configuration and pass them to the client:
+Valinor's mapping/normalization is fast but benefits from a cache in production. Hand the client
+(and the callback handler) a Valinor cache and the SDK wires it into its own, fully configured
+builders:
 
 ```php
 use CuyZ\Valinor\Cache\FileSystemCache;
-use CuyZ\Valinor\MapperBuilder;
-use CuyZ\Valinor\NormalizerBuilder;
+use Setono\Quickpay\Callback\CallbackHandler;
 use Setono\Quickpay\Client\Client;
 
-$cache = new FileSystemCache(__DIR__ . '/var/cache/valinor');
+$cache = new FileSystemCache(__DIR__ . '/var/cache/valinor'); // clear it on deploy, like any compiled cache
+
+$client = new Client('YOUR_API_KEY', cache: $cache);
+$handler = new CallbackHandler('YOUR_PRIVATE_KEY', cache: $cache);
+```
+
+If you already run Valinor elsewhere and want to share one builder, pass it explicitly — but wrap it
+in the SDK's configuration first, or the response DTOs won't map (dates, extra keys). A builder you
+pass in is used as given, and the `cache:` argument does not apply to it:
+
+```php
+use CuyZ\Valinor\MapperBuilder;
+use CuyZ\Valinor\NormalizerBuilder;
 
 $client = new Client(
     'YOUR_API_KEY',

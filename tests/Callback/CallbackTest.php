@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Setono\Quickpay\Callback;
 
+use CuyZ\Valinor\Cache\FileSystemCache;
 use Nyholm\Psr7\ServerRequest;
 use PHPUnit\Framework\Attributes\Test;
 use Setono\Quickpay\Enum\PaymentState;
@@ -213,5 +214,19 @@ final class CallbackTest extends QuickpayTestCase
 
         $this->expectException(InvalidCallbackException::class);
         $callback->payment();
+    }
+
+    #[Test]
+    public function the_handler_uses_the_given_cache_for_its_default_mapper(): void
+    {
+        $dir = self::tempDir();
+        $handler = new CallbackHandler(self::PRIVATE_KEY, cache: new FileSystemCache($dir));
+        $raw = self::fixture('callback_payment.json');
+
+        $payment = $handler->handleRaw($raw, $handler->validator()->sign($raw), ResourceType::Payment->value)->payment();
+
+        self::assertSame(9999, $payment->id);
+        self::assertDirectoryExists($dir, 'the cache directory should have been populated');
+        self::removeDir($dir);
     }
 }

@@ -102,11 +102,10 @@ abstract class ResourceEndpoint extends Endpoint
     /**
      * {@see self::postOperation()} with extra request headers — e.g.
      * `[Client::CALLBACK_URL_HEADER => $url]` so Quickpay POSTs this operation's callback there
-     * instead of to the account-wide callback URL. (Empty values are skipped, so callers can pass
-     * `[Client::CALLBACK_URL_HEADER => $maybeNull]` unconditionally.)
+     * instead of to the account-wide callback URL.
      *
      * @param Payload|array<string, mixed> $request
-     * @param array<string, string|null> $headers
+     * @param array<string, string> $headers
      *
      * @return T
      */
@@ -122,14 +121,7 @@ abstract class ResourceEndpoint extends Endpoint
             $path .= '?synchronized';
         }
 
-        $sent = [];
-        foreach ($headers as $name => $value) {
-            if (null !== $value && '' !== $value) {
-                $sent[$name] = $value;
-            }
-        }
-
-        return $this->mapItem(static::getItemClass(), $this->client->post($path, $request, $sent));
+        return $this->mapItem(static::getItemClass(), $this->client->post($path, $request, $headers));
     }
 
     /**

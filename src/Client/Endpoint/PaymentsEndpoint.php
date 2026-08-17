@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Setono\Quickpay\Client\Endpoint;
 
 use Setono\Quickpay\Client\Client;
+use Setono\Quickpay\Request\Payload;
 use Setono\Quickpay\Request\Payment\AuthorizePaymentRequest;
 use Setono\Quickpay\Request\Payment\CaptureRequest;
 use Setono\Quickpay\Request\Payment\CreateLinkRequest;
@@ -99,7 +100,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
      */
     public function authorize(int $id, AuthorizePaymentRequest $request, ?bool $synchronized = null, ?string $callbackUrl = null): Payment
     {
-        return $this->postOperationWithHeaders($id, 'authorize', $request, $synchronized, [Client::CALLBACK_URL_HEADER => $callbackUrl]);
+        return $this->operation($id, 'authorize', $request, $synchronized, $callbackUrl);
     }
 
     /**
@@ -109,7 +110,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
      */
     public function capture(int $id, CaptureRequest $request, ?bool $synchronized = null, ?string $callbackUrl = null): Payment
     {
-        return $this->postOperationWithHeaders($id, 'capture', $request, $synchronized, [Client::CALLBACK_URL_HEADER => $callbackUrl]);
+        return $this->operation($id, 'capture', $request, $synchronized, $callbackUrl);
     }
 
     /**
@@ -119,7 +120,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
      */
     public function refund(int $id, RefundRequest $request, ?bool $synchronized = null, ?string $callbackUrl = null): Payment
     {
-        return $this->postOperationWithHeaders($id, 'refund', $request, $synchronized, [Client::CALLBACK_URL_HEADER => $callbackUrl]);
+        return $this->operation($id, 'refund', $request, $synchronized, $callbackUrl);
     }
 
     /**
@@ -129,7 +130,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
      */
     public function cancel(int $id, ?bool $synchronized = null, ?string $callbackUrl = null): Payment
     {
-        return $this->postOperationWithHeaders($id, 'cancel', [], $synchronized, [Client::CALLBACK_URL_HEADER => $callbackUrl]);
+        return $this->operation($id, 'cancel', [], $synchronized, $callbackUrl);
     }
 
     /**
@@ -148,6 +149,21 @@ final class PaymentsEndpoint extends CollectionEndpoint
     public function deleteLink(int $id): void
     {
         $this->deleteSubResource($id, 'link');
+    }
+
+    /**
+     * The four operations share this: `postOperation()`, plus the `QuickPay-Callback-Url` header
+     * when a `$callbackUrl` is given.
+     *
+     * @param Payload|array<string, mixed> $request
+     */
+    private function operation(int $id, string $action, Payload|array $request, ?bool $synchronized, ?string $callbackUrl): Payment
+    {
+        if (null === $callbackUrl) {
+            return $this->postOperation($id, $action, $request, $synchronized);
+        }
+
+        return $this->postOperationWithHeaders($id, $action, $request, $synchronized, [Client::CALLBACK_URL_HEADER => $callbackUrl]);
     }
 
     protected static function getPath(): string

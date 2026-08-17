@@ -17,8 +17,7 @@ use Setono\Quickpay\Request\Payload;
  *
  * `Client` is its only implementation. Type-hint against this interface and fake it in tests, but
  * do not implement it in production code: it may gain optional parameters (and, in a major version,
- * methods) as the SDK grows — the backwards-compatibility check baselines exactly such additions
- * (`.roave-backward-compatibility-check.xml`).
+ * methods) as the SDK grows.
  */
 interface ClientInterface
 {

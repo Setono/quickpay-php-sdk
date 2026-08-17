@@ -3,7 +3,6 @@
 /.gitattributes                 export-ignore
 /.github                        export-ignore
 /.gitignore                     export-ignore
-/.roave-backward-compatibility-check.xml export-ignore
 /CLAUDE.md                      export-ignore
 /composer-dependency-analyser.php export-ignore
 /ecs.php                        export-ignore

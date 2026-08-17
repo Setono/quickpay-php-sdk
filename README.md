@@ -79,6 +79,8 @@ header('Location: ' . $link->url);
 
 `continueUrl` / `cancelUrl` are where the customer is sent after a successful / cancelled payment;
 `callbackUrl` is the server-to-server URL Quickpay POSTs the result to (see [Callbacks](#callbacks)).
+If the order is cancelled before the customer pays, invalidate the link with
+`$client->payments()->deleteLink($payment->id)`.
 
 ### Capturing, refunding, cancelling
 
@@ -293,6 +295,50 @@ payload (with the original snake_case keys from the Quickpay docs) via `$raw`:
 $payment = $client->payments()->getById(1234);
 $payment->raw['text_on_statement'];
 $payment->raw['acquirer'];
+```
+
+### Calling endpoints the SDK doesn't model
+
+The SDK is deliberately narrow, but the `Client` is a complete, authenticated HTTP layer for the whole
+Quickpay API: `get()`, `post()`, `put()`, `patch()` and `delete()` take a path relative to
+`https://api.quickpay.net`, stamp the auth and `Accept-Version` headers, throw the same typed
+exceptions on non-2xx responses, and return the decoded JSON body as an array (`[]` for `204 No
+Content`). Bodies can be a typed `Payload` or a plain array — arrays are sent **as given**, so use the
+snake_case keys from the Quickpay docs:
+
+```php
+// Renew an authorization (POST /payments/{id}/renew) — not modeled on PaymentsEndpoint
+$raw = $client->post(sprintf('payments/%d/renew?synchronized', $payment->id));
+
+// Subscriptions — a resource the SDK doesn't type at all
+$subscription = $client->post('subscriptions', [
+    'order_id' => 'sub-0001',
+    'currency' => 'DKK',
+    'description' => 'Monthly plan',
+]);
+$client->put(sprintf('subscriptions/%d/link', $subscription['id']), ['amount' => 9900, 'continue_url' => '...']);
+
+// Anything else — a query string, a DELETE
+$operations = $client->get(sprintf('payments/%d/operations/%d', $payment->id, 3));
+$client->delete(sprintf('subscriptions/%d/link', $subscription['id']));
+```
+
+The host is pinned: an absolute URL to any other host throws `InvalidUrlException`, so your API key
+can never leave `api.quickpay.net`. If you need the raw PSR-7 request/response, use
+`$client->request($psr7Request)` (same guard, same headers) or `getLastRequest()` /
+`getLastResponse()` after any call.
+
+To turn a raw payment array (e.g. the `renew` response above) into a typed `Payment`, map it the way
+the SDK does:
+
+```php
+use CuyZ\Valinor\Mapper\Source\Source;
+use CuyZ\Valinor\MapperBuilder;
+use Setono\Quickpay\Response\Payment\Payment;
+
+$payment = Client::configureMapperBuilder(new MapperBuilder())->mapper()
+    ->map(Payment::class, Source::array($raw)->camelCaseKeys());
+$payment->raw = $raw;
 ```
 
 ### Error handling

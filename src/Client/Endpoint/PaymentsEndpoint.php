@@ -139,7 +139,7 @@ final class PaymentsEndpoint extends CollectionEndpoint
      */
     public function cancel(int $id, ?bool $synchronized = null): Payment
     {
-        return $this->postOperation($id, 'cancel', null, $synchronized);
+        return $this->postOperation($id, 'cancel', [], $synchronized);
     }
 
     /**
@@ -149,6 +149,15 @@ final class PaymentsEndpoint extends CollectionEndpoint
     public function createLink(int $id, CreateLinkRequest $request): Link
     {
         return $this->mapItem(Link::class, $this->putSubResource($id, 'link', $request));
+    }
+
+    /**
+     * DELETE `/payments/{id}/link` — invalidate the payment window link so the customer can no
+     * longer pay through it (e.g. when the order is cancelled before payment).
+     */
+    public function deleteLink(int $id): void
+    {
+        $this->deleteSubResource($id, 'link');
     }
 
     protected static function getPath(): string

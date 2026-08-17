@@ -8,7 +8,7 @@ use PHPUnit\Framework\Attributes\Test;
 use Setono\Quickpay\QuickpayTestCase;
 use Setono\Quickpay\Request\CollectionRequestOptions;
 use Setono\Quickpay\Response\Payment\Payment;
-use Setono\Quickpay\TestDouble\ScriptedHttpClient;
+use Setono\Quickpay\Testing\ScriptedHttpClient;
 
 final class PaginationTest extends QuickpayTestCase
 {

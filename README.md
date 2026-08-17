@@ -220,6 +220,51 @@ $callback = $handler->handleRaw($body, $checksum, ResourceType::Payment->value);
 $handler->handleRaw($body . 'tampered', $checksum, ResourceType::Payment->value); // throws InvalidChecksumException
 ```
 
+### Testing code that uses the SDK
+
+`Client` and the endpoints are `final` on purpose: the seam for tests is the **HTTP layer**, so your
+tests exercise the SDK's real request building, (de)serialization and error mapping instead of a
+mock that agrees with your assumptions. The SDK ships an in-process PSR-18 fake for exactly this —
+`Setono\Quickpay\Testing\ScriptedHttpClient` (it is what the SDK's own suite uses):
+
+```php
+use Setono\Quickpay\Client\Client;
+use Setono\Quickpay\Testing\ScriptedHttpClient;
+
+$http = (new ScriptedHttpClient())
+    // key = URI (relative to https://api.quickpay.net, or absolute), value = JSON body
+    ->on('payments/1234', '{"id":1234,"merchant_id":1,"order_id":"order-0001","accepted":true,"currency":"DKK","state":"new","operations":[]}')
+    // optionally pin a method, status and headers; queries must match exactly as the SDK sends them
+    ->on('POST payments', file_get_contents(__DIR__ . '/fixtures/payment.json'), 201)
+    ->on('payments?order_id=order-0002&page=1&page_size=1', '[]')
+    ->on('payments/999', '{"message":"Not found"}', 404);
+
+$client = new Client('test-key', httpClient: $http); // any string works as the key in tests
+
+// ... exercise your code, e.g. $checkout->start($order) ...
+
+self::assertSame('POST', $http->sentRequests[0]->getMethod());
+self::assertJsonStringEqualsJsonString('{"order_id":"order-0001","currency":"DKK"}', (string) $http->sentRequests[0]->getBody());
+```
+
+Capture the fixture bodies from real (test-mode) responses — `$client->getLastResponse()` gives you
+the raw PSR-7 response after any call. A request with no script throws, listing what *is* scripted.
+
+Response DTOs also have public constructors, so code that merely *consumes* a `Payment` (an event
+listener, a state machine) can be tested with hand-built objects:
+
+```php
+use Setono\Quickpay\Response\Payment\Operation;
+use Setono\Quickpay\Response\Payment\Payment;
+
+$payment = new Payment(id: 1, orderId: 'order-0001', currency: 'DKK', state: 'new', merchantId: 1, accepted: true, operations: [
+    new Operation(id: 1, type: 'authorize', amount: 1000, qpStatusCode: '20000'),
+]);
+```
+
+For callbacks, see [Testing your callback endpoint](#testing-your-callback-endpoint) — same idea:
+a real handler with a made-up key, and `sign()` to forge authentic signatures.
+
 ### Accessing fields the SDK doesn't model
 
 The SDK types the most commonly used fields; every response object also exposes the full decoded

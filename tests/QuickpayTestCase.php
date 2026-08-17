@@ -7,7 +7,7 @@ namespace Setono\Quickpay;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\TestCase;
 use Setono\Quickpay\Client\Client;
-use Setono\Quickpay\TestDouble\ScriptedHttpClient;
+use Setono\Quickpay\Testing\ScriptedHttpClient;
 
 abstract class QuickpayTestCase extends TestCase
 {

@@ -17,7 +17,7 @@ use Setono\Quickpay\Request\Payment\CreatePaymentRequest;
 use Setono\Quickpay\Request\Payment\RefundRequest;
 use Setono\Quickpay\Request\Payment\UpdatePaymentRequest;
 use Setono\Quickpay\Response\Payment\Payment;
-use Setono\Quickpay\TestDouble\ScriptedHttpClient;
+use Setono\Quickpay\Testing\ScriptedHttpClient;
 
 final class PaymentsEndpointTest extends QuickpayTestCase
 {

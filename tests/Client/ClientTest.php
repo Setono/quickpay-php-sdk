@@ -21,7 +21,7 @@ use Setono\Quickpay\Exception\UnexpectedStatusCodeException;
 use Setono\Quickpay\Exception\ValidationException;
 use Setono\Quickpay\QuickpayTestCase;
 use Setono\Quickpay\Request\CollectionRequestOptions;
-use Setono\Quickpay\TestDouble\ScriptedHttpClient;
+use Setono\Quickpay\Testing\ScriptedHttpClient;
 
 final class ClientTest extends QuickpayTestCase
 {

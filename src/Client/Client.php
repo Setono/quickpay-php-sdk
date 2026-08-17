@@ -9,6 +9,7 @@ use CuyZ\Valinor\Normalizer\Format;
 use CuyZ\Valinor\NormalizerBuilder;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
+use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface as HttpClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\RequestInterface;
@@ -23,6 +24,7 @@ use Setono\Quickpay\Exception\MalformedResponseException;
 use Setono\Quickpay\Exception\MethodNotAllowedException;
 use Setono\Quickpay\Exception\NotFoundException;
 use Setono\Quickpay\Exception\TooManyRequestsException;
+use Setono\Quickpay\Exception\TransportException;
 use Setono\Quickpay\Exception\UnauthorizedException;
 use Setono\Quickpay\Exception\UnexpectedStatusCodeException;
 use Setono\Quickpay\Exception\ValidationException;
@@ -107,7 +109,15 @@ final class Client implements ClientInterface
             $request = $request->withHeader('Content-Type', 'application/json');
         }
 
-        $response = $this->httpClient->sendRequest($request);
+        try {
+            $response = $this->httpClient->sendRequest($request);
+        } catch (ClientExceptionInterface $e) {
+            // Nothing came back: record the attempt, then surface it as an SDK exception.
+            $this->lastRequest = $request;
+            $this->lastResponse = null;
+
+            throw new TransportException($request, $e);
+        }
 
         $this->lastRequest = $request;
         $this->lastResponse = $response;

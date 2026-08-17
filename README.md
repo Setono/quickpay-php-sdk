@@ -233,11 +233,15 @@ $payment->raw['acquirer'];
 
 ### Error handling
 
-Every non-2xx response throws a typed exception; all of them implement
-`Setono\Quickpay\Exception\QuickpayException`:
+Everything the SDK throws implements `Setono\Quickpay\Exception\QuickpayException`, so one catch
+nets it all: every non-2xx response is a typed exception, a 2xx body that can't be decoded/mapped is
+a `MalformedResponseException`, and a request that never got a response (DNS, connection refused,
+TLS, timeout) is a `TransportException` wrapping the PSR-18 client's exception (it is still a PSR-18
+`ClientExceptionInterface`; the original is `getPrevious()`):
 
 ```php
 use Setono\Quickpay\Exception\QuickpayException;
+use Setono\Quickpay\Exception\TransportException;
 use Setono\Quickpay\Exception\ValidationException;
 
 try {
@@ -246,6 +250,11 @@ try {
     $e->getMessageText();       // Quickpay's "message"
     $e->getErrorCode();         // Quickpay's "error_code"
     $e->getValidationErrors();  // Quickpay's "errors" map (field => messages)
+} catch (TransportException $e) {
+    // nothing reached Quickpay (or nothing came back) — safe to retry an idempotent read;
+    // for a create/capture, look the payment up first (see "Finding the payment for an order")
+    $e->isNetworkError();  // vs. a request the HTTP client refused to send
+    $e->getRequest();      // the PSR-7 request that failed
 } catch (QuickpayException $e) {
     // any other SDK error (UnauthorizedException, NotFoundException, ConflictException,
     // TooManyRequestsException, InternalServerErrorException, MalformedResponseException, ...)

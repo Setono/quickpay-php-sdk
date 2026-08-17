@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Setono\Quickpay\Client;
 
-use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Setono\Quickpay\Client\Endpoint\PaymentsEndpoint;
 use Setono\Quickpay\Exception\InvalidUrlException;
 use Setono\Quickpay\Exception\QuickpayException;
+use Setono\Quickpay\Exception\TransportException;
 use Setono\Quickpay\Request\Payload;
 
 interface ClientInterface
@@ -27,7 +27,8 @@ interface ClientInterface
     public function getLastRequest(): ?RequestInterface;
 
     /**
-     * The last response received from the API, or `null` if no response has been received yet.
+     * The last response received from the API, or `null` if no response has been received yet (or
+     * the last request failed at the transport level).
      */
     public function getLastResponse(): ?ResponseInterface;
 
@@ -38,7 +39,7 @@ interface ClientInterface
      * guard, so credentials can never be sent anywhere else.
      *
      * @throws InvalidUrlException if the request URI is not on the Quickpay API host (or uses a non-default port)
-     * @throws ClientExceptionInterface if an error happens while processing the request
+     * @throws TransportException if the request could not be sent / no response was received (wraps the PSR-18 exception)
      * @throws QuickpayException if the response is non-2xx (concrete subtype depends on the status code)
      */
     public function request(RequestInterface $request): ResponseInterface;
@@ -50,7 +51,7 @@ interface ClientInterface
      *
      * @return array<array-key, mixed>
      *
-     * @throws ClientExceptionInterface if an error happens while processing the request
+     * @throws TransportException if the request could not be sent / no response was received (wraps the PSR-18 exception)
      * @throws QuickpayException if the response is non-2xx, or the body is not valid JSON
      */
     public function get(string $uri, array $query = []): array;
@@ -62,7 +63,7 @@ interface ClientInterface
      *
      * @return array<array-key, mixed>
      *
-     * @throws ClientExceptionInterface if an error happens while processing the request
+     * @throws TransportException if the request could not be sent / no response was received (wraps the PSR-18 exception)
      * @throws QuickpayException if the response is non-2xx, or the body is not valid JSON
      */
     public function post(string $uri, ?Payload $body = null): array;
@@ -73,7 +74,7 @@ interface ClientInterface
      *
      * @return array<array-key, mixed>
      *
-     * @throws ClientExceptionInterface if an error happens while processing the request
+     * @throws TransportException if the request could not be sent / no response was received (wraps the PSR-18 exception)
      * @throws QuickpayException if the response is non-2xx, or the body is not valid JSON
      */
     public function put(string $uri, ?Payload $body = null): array;
@@ -84,7 +85,7 @@ interface ClientInterface
      *
      * @return array<array-key, mixed>
      *
-     * @throws ClientExceptionInterface if an error happens while processing the request
+     * @throws TransportException if the request could not be sent / no response was received (wraps the PSR-18 exception)
      * @throws QuickpayException if the response is non-2xx, or the body is not valid JSON
      */
     public function patch(string $uri, ?Payload $body = null): array;
@@ -92,7 +93,7 @@ interface ClientInterface
     /**
      * Health check — `GET /ping`. Returns `true` on a 2xx response (a non-2xx response throws).
      *
-     * @throws ClientExceptionInterface if an error happens while processing the request
+     * @throws TransportException if the request could not be sent / no response was received (wraps the PSR-18 exception)
      * @throws QuickpayException if the response is non-2xx
      */
     public function ping(): bool;

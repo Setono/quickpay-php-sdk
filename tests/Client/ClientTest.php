@@ -14,8 +14,10 @@ use Setono\Quickpay\Exception\InvalidUrlException;
 use Setono\Quickpay\Exception\MalformedResponseException;
 use Setono\Quickpay\Exception\MethodNotAllowedException;
 use Setono\Quickpay\Exception\NotFoundException;
+use Setono\Quickpay\Exception\QuickpayException;
 use Setono\Quickpay\Exception\ResponseAwareException;
 use Setono\Quickpay\Exception\TooManyRequestsException;
+use Setono\Quickpay\Exception\TransportException;
 use Setono\Quickpay\Exception\UnauthorizedException;
 use Setono\Quickpay\Exception\UnexpectedStatusCodeException;
 use Setono\Quickpay\Exception\ValidationException;
@@ -305,5 +307,107 @@ final class ClientTest extends QuickpayTestCase
 
         self::assertSame(200, $response->getStatusCode());
         self::assertSame('Basic ' . base64_encode(':' . self::API_KEY), $http->sentRequests[0]->getHeaderLine('Authorization'));
+    }
+
+    #[Test]
+    public function it_wraps_a_psr18_network_failure_in_a_transport_exception(): void
+    {
+        $psr17 = new Psr17Factory();
+        $client = new Client(self::API_KEY, httpClient: new ThrowingHttpClient(network: true), requestFactory: $psr17, streamFactory: $psr17);
+
+        try {
+            $client->ping();
+            self::fail('Expected a TransportException.');
+        } catch (TransportException $e) {
+            // (It is a QuickpayException AND a PSR-18 ClientExceptionInterface — see ExceptionHierarchyTest.)
+            self::assertInstanceOf(\Psr\Http\Client\NetworkExceptionInterface::class, $e->getPrevious());
+            self::assertTrue($e->isNetworkError());
+            self::assertSame('The request could not be sent [GET https://api.quickpay.net/ping]: connection refused', $e->getMessage());
+            self::assertSame(self::BASE . '/ping', (string) $e->getRequest()->getUri());
+            self::assertSame('v10', $e->getRequest()->getHeaderLine('Accept-Version'), 'the request carries the SDK headers');
+        }
+
+        // The attempt is recorded, and there is no response to show for it.
+        self::assertNotNull($client->getLastRequest());
+        self::assertNull($client->getLastResponse());
+    }
+
+    #[Test]
+    public function it_wraps_a_psr18_request_error_in_a_transport_exception(): void
+    {
+        $psr17 = new Psr17Factory();
+        $client = new Client(self::API_KEY, httpClient: new ThrowingHttpClient(network: false), requestFactory: $psr17, streamFactory: $psr17);
+
+        try {
+            $client->ping();
+            self::fail('Expected a TransportException.');
+        } catch (TransportException $e) {
+            self::assertFalse($e->isNetworkError());
+            self::assertInstanceOf(\Psr\Http\Client\RequestExceptionInterface::class, $e->getPrevious());
+        }
+    }
+
+    #[Test]
+    public function a_transport_failure_strips_the_query_string_from_the_message(): void
+    {
+        $psr17 = new Psr17Factory();
+        $client = new Client(self::API_KEY, httpClient: new ThrowingHttpClient(network: true), requestFactory: $psr17, streamFactory: $psr17);
+
+        try {
+            $client->get('payments', ['order_id' => 'secret-ref']);
+            self::fail('Expected a TransportException.');
+        } catch (TransportException $e) {
+            self::assertStringNotContainsString('secret-ref', $e->getMessage());
+            self::assertStringContainsString('[GET https://api.quickpay.net/payments]', $e->getMessage());
+        }
+    }
+
+    #[Test]
+    public function catching_quickpay_exception_nets_a_transport_failure_too(): void
+    {
+        $psr17 = new Psr17Factory();
+        $client = new Client(self::API_KEY, httpClient: new ThrowingHttpClient(network: true), requestFactory: $psr17, streamFactory: $psr17);
+
+        $this->expectException(QuickpayException::class);
+
+        $client->ping();
+    }
+}
+
+/**
+ * A PSR-18 client that always fails at the transport level, the way a real one does on DNS /
+ * connection / timeout errors (network) or a request it refuses to send.
+ */
+final class ThrowingHttpClient implements \Psr\Http\Client\ClientInterface
+{
+    public function __construct(private readonly bool $network)
+    {
+    }
+
+    public function sendRequest(\Psr\Http\Message\RequestInterface $request): \Psr\Http\Message\ResponseInterface
+    {
+        throw $this->network
+            ? new class($request) extends \RuntimeException implements \Psr\Http\Client\NetworkExceptionInterface {
+                public function __construct(private readonly \Psr\Http\Message\RequestInterface $request)
+                {
+                    parent::__construct('connection refused');
+                }
+
+                public function getRequest(): \Psr\Http\Message\RequestInterface
+                {
+                    return $this->request;
+                }
+            }
+        : new class($request) extends \RuntimeException implements \Psr\Http\Client\RequestExceptionInterface {
+            public function __construct(private readonly \Psr\Http\Message\RequestInterface $request)
+            {
+                parent::__construct('malformed request');
+            }
+
+            public function getRequest(): \Psr\Http\Message\RequestInterface
+            {
+                return $this->request;
+            }
+        };
     }
 }

@@ -14,17 +14,67 @@ Built on PSR-18 (HTTP client), PSR-17 (factories) and PSR-7 (messages), discover
 [`php-http/discovery`](https://github.com/php-http/discovery), so it works with any compliant HTTP
 client.
 
+- [Installation](#installation)
+- [Concepts — five things to know about Quickpay](#concepts--five-things-to-know-about-quickpay)
+- [Usage](#usage)
+  - [Payment link flow](#payment-link-flow-redirect-the-customer-to-the-payment-window) ·
+    [Capturing, refunding, cancelling](#capturing-refunding-cancelling) ·
+    [Reading what happened to a payment](#reading-what-happened-to-a-payment) ·
+    [Updating a payment](#updating-a-payment) ·
+    [Reading and listing payments](#reading-and-listing-payments)
+  - [Callbacks](#callbacks) — verifying, framework snippets, [handling them robustly](#handling-callbacks-robustly), testing your endpoint
+  - [Testing code that uses the SDK](#testing-code-that-uses-the-sdk) ·
+    [Accessing fields the SDK doesn't model](#accessing-fields-the-sdk-doesnt-model) ·
+    [Calling endpoints the SDK doesn't model](#calling-endpoints-the-sdk-doesnt-model) ·
+    [Error handling](#error-handling)
+- [Recipes](#recipes) — checkout end to end, wiring in Symfony
+- [Production usage](#production-usage) · [Contributing](#contributing) · [End-to-end testing](#end-to-end-testing)
+
 ## Installation
 
 ```bash
 composer require setono/quickpay-php-sdk
 ```
 
-You also need a PSR-18 client and a PSR-17 factory if your project doesn't already provide them, e.g.:
+The SDK needs a PSR-18 HTTP client and PSR-17 factories, found at runtime via `php-http/discovery`.
+If your project has none yet, Composer's `php-http/discovery` plugin offers to install one for you
+during `composer require` (it picks e.g. `symfony/http-client` + `nyholm/psr7`). If you have
+disabled that plugin (`allow-plugins`), or prefer to choose, require an implementation yourself:
 
 ```bash
-composer require kriswallsmith/buzz nyholm/psr7
+composer require symfony/http-client nyholm/psr7   # or guzzlehttp/guzzle, kriswallsmith/buzz, ...
 ```
+
+Without one, `new Client(...)` throws `Http\Discovery\Exception\NotFoundException` ("No PSR-18
+clients found") the first time it runs — the install itself succeeds, so make sure a client is
+present before you deploy.
+
+## Concepts — five things to know about Quickpay
+
+1. **Two keys.** The **API key** (manager → Settings → API user) authenticates API calls (`Client`).
+   The **private key** (Settings → Integration) signs callbacks (`CallbackHandler`). They are not
+   interchangeable, and neither is a "test" key: there is no sandbox. A payment is a *test* payment
+   (`test_mode: true`) purely because it was paid with a
+   [test card](https://learn.quickpay.net/tech-talk/appendixes/test/); test callbacks are real and
+   signed exactly like production.
+2. **Amounts are integers in the smallest currency unit** — `1000` is 10.00 DKK / EUR / …, on
+   requests and responses alike. The SDK does no currency math.
+3. **A payment is a ledger of operations.** `POST /payments` creates an empty payment (state
+   `initial`). Everything that happens afterwards — authorize, capture, refund, cancel — is an
+   *operation* appended to `payment.operations`, each with `pending` (still being processed) and a
+   `qp_status_code` (`"20000"` = approved; `3xxxx` = 3-D Secure / SCA needed, `4xxxx` = rejected or
+   invalid, `5xxxx` = gateway/acquirer error — see [Errors and codes](https://learn.quickpay.net/tech-talk/appendixes/errors/)).
+   The payment's own fields summarize the ledger: `accepted` (an authorization was approved by the
+   acquirer), `state` (`initial` → `pending` while an authorization is in flight → `new` once
+   authorized, or `rejected`; `processed` after capture/cancel/refund activity), and `balance`
+   (captured minus refunded). Read the operations, not just the state — the SDK's
+   [helpers](#reading-what-happened-to-a-payment) do that for you.
+4. **Operations are asynchronous by default.** `capture()` etc. return `202 Accepted` with the new
+   operation still `pending: true`; the outcome arrives via the callback (or by re-fetching). Pass
+   `synchronized: true` (per call or as a client default) to wait for the result instead.
+5. **The redirect back to your shop proves nothing.** When the customer returns to `continue_url`
+   the request carries no payment data and can arrive *before* the callback. Treat the signed
+   [callback](#callbacks) — or a `getById()` on your side — as the source of truth for "paid".
 
 ## Usage
 
@@ -81,6 +131,11 @@ header('Location: ' . $link->url);
 `callbackUrl` is the server-to-server URL Quickpay POSTs the result to (see [Callbacks](#callbacks)).
 If the order is cancelled before the customer pays, invalidate the link with
 `$client->payments()->deleteLink($payment->id)`.
+
+> **The `continueUrl` redirect is not proof of payment.** It carries no data and can arrive before the
+> callback. On that page, either wait for the verified callback to have marked the order paid, or
+> re-fetch the payment (`getById()`) and check `accepted` / the operations yourself — never mark an
+> order paid just because the customer landed there.
 
 ### Capturing, refunding, cancelling
 
@@ -286,6 +341,29 @@ $callback = $handler->handleRaw($body, $checksum, ResourceType::Payment->value);
 $handler->handleRaw($body . 'tampered', $checksum, ResourceType::Payment->value); // throws InvalidChecksumException
 ```
 
+#### Handling callbacks robustly
+
+A few facts about Quickpay's callback service shape how your endpoint should behave (all from
+[their callback docs](https://learn.quickpay.net/tech-talk/api/callback/), verified in the e2e harness):
+
+- **Every operation triggers a callback, and the body is the whole payment as it exists after the
+  change** (equivalent to `GET /payments/{id}`) — not a "capture succeeded" event. Work out what
+  happened from the operations: `$payment->latestOperation()` is usually the one that fired it, but
+  compare against what you've already recorded rather than assuming.
+- **Deliveries are retried up to 24 times** with growing delays until you answer `2xx` (or `302`/`303`).
+  So make the endpoint **idempotent**: keep the operation ids you have processed per payment
+  (`Operation::$id` is a per-payment sequence number) and skip ones you've seen. Answer `200` even
+  when the payment is already in the state the callback describes.
+- **Answer fast, then work.** Verify, persist, respond — and do the slow parts (emails, ERP sync)
+  asynchronously. A slow endpoint looks like a failure and gets retried.
+- **Order is only guaranteed per payment.** Callbacks for the same payment arrive in operation order;
+  callbacks for different payments arrive in any order.
+- **Respond `403` on a bad checksum and `400` on an unknown resource type**, as in the example above.
+  A `2xx` on a bad checksum tells an attacker their forgery was accepted; a `5xx` on a genuinely bad
+  request just earns you 24 retries of the same bad request.
+- The verified `Callback` carries `accountId` — useful if one endpoint serves several Quickpay
+  accounts — and the raw `body` you can store for auditing.
+
 ### Accessing fields the SDK doesn't model
 
 The SDK types the most commonly used fields; every response object also exposes the full decoded
@@ -370,6 +448,87 @@ try {
     // TooManyRequestsException, InternalServerErrorException, MalformedResponseException, ...)
 }
 ```
+
+## Recipes
+
+### Checkout, end to end
+
+Putting the pieces together — create (idempotently), send the customer to pay, learn the outcome from
+the callback, capture on shipment:
+
+```php
+use Setono\Quickpay\Request\Payment\CaptureRequest;
+use Setono\Quickpay\Request\Payment\CreateLinkRequest;
+use Setono\Quickpay\Request\Payment\CreatePaymentRequest;
+use Setono\Quickpay\Request\Payment\Shopsystem;
+
+// 1. Checkout: one Quickpay payment per order, safe to re-run
+$payment = $client->payments()->findByOrderId($order->number)
+    ?? $client->payments()->create(new CreatePaymentRequest(
+        orderId: $order->number,          // 4–20 chars, unique per account
+        currency: $order->currency,
+        variables: ['order_uuid' => $order->uuid], // anything you want back on the callback
+        shopsystem: new Shopsystem('acme/shop', '2.3.4'),
+    ));
+
+$link = $client->payments()->createLink($payment->id, new CreateLinkRequest(
+    amount: $order->total,                // smallest unit
+    continueUrl: $urls->thankYou($order),
+    cancelUrl: $urls->checkout($order),
+    callbackUrl: $urls->quickpayCallback(),
+));
+// → redirect the customer to $link->url
+
+// 2. Callback endpoint: the source of truth (see "Callbacks")
+$callback = $handler->handleRaw($request->getContent(), $checksum, $resourceType);
+if ($callback->isPayment()) {
+    $payment = $callback->payment();
+    $order = $orders->findByQuickpayVariables($payment->variables()); // or by $payment->orderId
+    foreach ($payment->operations as $operation) {
+        if ($order->hasProcessedOperation($operation->id)) {
+            continue; // retried delivery — idempotent
+        }
+        if ($operation->isOfType(OperationType::Authorize) && $operation->isApproved()) {
+            $order->markAuthorized($payment->id, $operation->amount);
+        }
+        // ... capture / refund / cancel likewise, or simply store $payment->capturedAmount() etc.
+        $order->recordOperation($operation->id);
+    }
+}
+// respond 200
+
+// 3. Shipping: capture (synchronously here, so a failure surfaces right away)
+$payment = $client->payments()->capture($order->quickpayId, new CaptureRequest($order->total), synchronized: true);
+if (!$payment->latestOperation()?->isApproved()) {
+    // rejected — see qpStatusMsg / aqStatusMsg
+}
+```
+
+### Wiring in Symfony
+
+The client and handler are plain, immutable services; give them their keys from the environment and
+a Valinor cache from the app's cache directory:
+
+```yaml
+# config/services.yaml
+services:
+    CuyZ\Valinor\Cache\FileSystemCache:
+        arguments: ['%kernel.cache_dir%/valinor']
+
+    Setono\Quickpay\Client\ClientInterface:
+        class: Setono\Quickpay\Client\Client
+        arguments:
+            $apiKey: '%env(QUICKPAY_API_KEY)%'
+            $cache: '@CuyZ\Valinor\Cache\FileSystemCache'
+
+    Setono\Quickpay\Callback\CallbackHandler:
+        arguments:
+            $privateKey: '%env(QUICKPAY_PRIVATE_KEY)%'
+            $cache: '@CuyZ\Valinor\Cache\FileSystemCache'
+```
+
+The PSR-18 client and PSR-17 factories are discovered automatically; to use the app's own (e.g.
+Symfony's `Psr18Client`), pass them explicitly via `$httpClient`, `$requestFactory`, `$streamFactory`.
 
 ## Production usage
 

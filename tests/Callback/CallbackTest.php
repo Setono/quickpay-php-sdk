@@ -229,4 +229,121 @@ final class CallbackTest extends QuickpayTestCase
         self::assertDirectoryExists($dir, 'the cache directory should have been populated');
         self::removeDir($dir);
     }
+
+    #[Test]
+    public function handle_raw_captures_the_account_id_and_api_version_when_given(): void
+    {
+        $handler = new CallbackHandler(self::PRIVATE_KEY);
+        $raw = self::fixture('callback_payment.json');
+
+        $callback = $handler->handleRaw($raw, $handler->validator()->sign($raw), 'Payment', accountId: '12345', apiVersion: 'v10');
+
+        self::assertSame('12345', $callback->accountId);
+        self::assertSame('v10', $callback->apiVersion);
+        self::assertSame(9999, $callback->payment()->id);
+    }
+
+    #[Test]
+    public function handle_raw_normalizes_empty_optional_headers_to_null(): void
+    {
+        $handler = new CallbackHandler(self::PRIVATE_KEY);
+        $raw = self::fixture('callback_payment.json');
+
+        $callback = $handler->handleRaw($raw, $handler->validator()->sign($raw), 'Payment', accountId: '', apiVersion: '');
+
+        self::assertNull($callback->accountId);
+        self::assertNull($callback->apiVersion);
+    }
+
+    #[Test]
+    public function handle_globals_reads_the_body_and_the_quickpay_headers_from_server(): void
+    {
+        $handler = new CallbackHandler(self::PRIVATE_KEY);
+        $raw = self::fixture('callback_payment.json');
+
+        $callback = $handler->handleGlobals($raw, [
+            'REQUEST_METHOD' => 'POST',
+            'HTTP_QUICKPAY_CHECKSUM_SHA256' => $handler->validator()->sign($raw),
+            'HTTP_QUICKPAY_RESOURCE_TYPE' => 'Payment',
+            'HTTP_QUICKPAY_ACCOUNT_ID' => 12345, // superglobal values are not necessarily strings
+            'HTTP_QUICKPAY_API_VERSION' => 'v10',
+        ]);
+
+        self::assertTrue($callback->isPayment());
+        self::assertSame($raw, $callback->body);
+        self::assertSame('12345', $callback->accountId);
+        self::assertSame('v10', $callback->apiVersion);
+        self::assertSame(9999, $callback->payment()->id);
+    }
+
+    #[Test]
+    public function handle_globals_rejects_a_bad_checksum(): void
+    {
+        $handler = new CallbackHandler(self::PRIVATE_KEY);
+        $raw = self::fixture('callback_payment.json');
+
+        $this->expectException(InvalidChecksumException::class);
+
+        $handler->handleGlobals($raw, [
+            'HTTP_QUICKPAY_CHECKSUM_SHA256' => 'nope',
+            'HTTP_QUICKPAY_RESOURCE_TYPE' => 'Payment',
+        ]);
+    }
+
+    #[Test]
+    public function handle_globals_rejects_a_missing_checksum_header(): void
+    {
+        $handler = new CallbackHandler(self::PRIVATE_KEY);
+        $raw = self::fixture('callback_payment.json');
+
+        $this->expectException(InvalidChecksumException::class);
+
+        $handler->handleGlobals($raw, ['HTTP_QUICKPAY_RESOURCE_TYPE' => 'Payment']);
+    }
+
+    #[Test]
+    public function handle_globals_rejects_a_missing_resource_type_header(): void
+    {
+        $handler = new CallbackHandler(self::PRIVATE_KEY);
+        $raw = self::fixture('callback_payment.json');
+
+        $this->expectException(InvalidCallbackException::class);
+
+        $handler->handleGlobals($raw, ['HTTP_QUICKPAY_CHECKSUM_SHA256' => $handler->validator()->sign($raw)]);
+    }
+
+    #[Test]
+    public function handle_globals_leaves_optional_headers_null_when_absent(): void
+    {
+        $handler = new CallbackHandler(self::PRIVATE_KEY);
+        $raw = self::fixture('callback_payment.json');
+
+        $callback = $handler->handleGlobals($raw, [
+            'HTTP_QUICKPAY_CHECKSUM_SHA256' => $handler->validator()->sign($raw),
+            'HTTP_QUICKPAY_RESOURCE_TYPE' => 'Subscription',
+        ]);
+
+        self::assertSame(ResourceType::Subscription, $callback->type);
+        self::assertNull($callback->accountId);
+        self::assertNull($callback->apiVersion);
+    }
+
+    #[Test]
+    public function handle_globals_defaults_to_the_real_superglobals(): void
+    {
+        // Without arguments it reads php://input (empty in a CLI test) and $_SERVER — set the headers
+        // on the real superglobal to prove the defaults are wired, then restore it.
+        $handler = new CallbackHandler(self::PRIVATE_KEY);
+        $backup = $_SERVER;
+        $_SERVER['HTTP_QUICKPAY_CHECKSUM_SHA256'] = $handler->validator()->sign('');
+        $_SERVER['HTTP_QUICKPAY_RESOURCE_TYPE'] = 'Payment';
+
+        try {
+            $callback = $handler->handleGlobals();
+            self::assertSame('', $callback->body);
+            self::assertTrue($callback->isPayment());
+        } finally {
+            $_SERVER = $backup;
+        }
+    }
 }

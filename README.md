@@ -309,10 +309,41 @@ if ($callback->isPayment()) {
 http_response_code(200);
 ```
 
-No PSR-7 request handy? Use `handleRaw($rawBody, $checksum, $resourceType)` with the raw body and
-header values — e.g. `file_get_contents('php://input')`, `$_SERVER['HTTP_QUICKPAY_CHECKSUM_SHA256']`,
-`$_SERVER['HTTP_QUICKPAY_RESOURCE_TYPE']`. This is also the one to use if your framework already
-consumed the request body. To only verify (without wrapping), use `CallbackValidator`.
+#### Without a PSR-7 request: Symfony, Laravel, plain PHP
+
+Symfony and Laravel requests aren't PSR-7 (without a bridge), so in a controller use `handleRaw()`
+with the raw body and header values you already have — it returns the same verified `Callback`:
+
+```php
+// Symfony controller (Symfony\Component\HttpFoundation\Request $request)
+$callback = $handler->handleRaw(
+    $request->getContent(),
+    (string) $request->headers->get('QuickPay-Checksum-Sha256'),
+    (string) $request->headers->get('QuickPay-Resource-Type'),
+    accountId: $request->headers->get('QuickPay-Account-ID'),
+    apiVersion: $request->headers->get('QuickPay-API-Version'),
+);
+
+// Laravel controller (Illuminate\Http\Request $request)
+$callback = $handler->handleRaw(
+    $request->getContent(),
+    (string) $request->header('QuickPay-Checksum-Sha256'),
+    (string) $request->header('QuickPay-Resource-Type'),
+    accountId: $request->header('QuickPay-Account-ID'),
+    apiVersion: $request->header('QuickPay-API-Version'),
+);
+```
+
+Plain PHP (no framework)? `handleGlobals()` reads `php://input` and the `QuickPay-*` headers from
+`$_SERVER` for you:
+
+```php
+$callback = $handler->handleGlobals();
+```
+
+Whichever entry point you use, keep the body **raw** — `$request->getContent()` is the raw body in
+both frameworks; never re-encode a decoded JSON payload. To only verify (without wrapping), use
+`CallbackValidator`.
 
 #### Testing your callback endpoint
 

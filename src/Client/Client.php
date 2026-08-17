@@ -91,6 +91,10 @@ final class Client implements ClientInterface
 
     public function request(RequestInterface $request): ResponseInterface
     {
+        // Every request — including consumer-built ones passed straight in — goes through the
+        // host-pinning guard, so the API key below is never stamped onto a request for another host.
+        self::assertAllowedUrl((string) $request->getUri());
+
         // Quickpay uses HTTP Basic auth with an empty username and the API key as the password.
         $request = $request
             ->withHeader('Authorization', sprintf('Basic %s', base64_encode(':' . $this->apiKey)))
@@ -250,30 +254,7 @@ final class Client implements ClientInterface
     private function resolveUrl(string $uri, array $query = []): string
     {
         if (1 === preg_match('#^https?://#i', $uri)) {
-            // RFC 3986 hosts are case-insensitive — normalize both sides. The SDK refuses to send
-            // its auth credentials to any host other than the Quickpay API host.
-            $baseHost = strtolower(self::parseStringPart(self::HOST, \PHP_URL_HOST));
-            $uriHost = strtolower(self::parseStringPart($uri, \PHP_URL_HOST));
-
-            if ($baseHost !== $uriHost) {
-                throw new InvalidUrlException(sprintf(
-                    'Refusing to send a request to host "%s" — the Quickpay base host is "%s". '
-                    . 'The SDK only sends auth credentials to its configured host.',
-                    '' === $uriHost ? '(unparseable)' : $uriHost,
-                    $baseHost,
-                ));
-            }
-
-            // Port hardening: reject any explicit port that doesn't match the scheme default.
-            $port = parse_url($uri, \PHP_URL_PORT);
-            $scheme = strtolower(self::parseStringPart($uri, \PHP_URL_SCHEME));
-            $defaultPort = 'https' === $scheme ? 443 : ('http' === $scheme ? 80 : null);
-            if (null !== $port && $port !== $defaultPort) {
-                throw new InvalidUrlException(sprintf(
-                    'Refusing to send a request to non-default port %d on the Quickpay host.',
-                    $port,
-                ));
-            }
+            self::assertAllowedUrl($uri);
 
             if ([] !== $query) {
                 throw new InvalidUrlException(
@@ -291,6 +272,42 @@ final class Client implements ClientInterface
         }
 
         return $url;
+    }
+
+    /**
+     * The credential-leak guard: refuse any absolute URL that does not point at the Quickpay API
+     * host on its default port. Applied both when the SDK builds a URL from a path
+     * ({@see self::resolveUrl()}) and to every request that reaches {@see self::request()}, so the
+     * API key is never sent anywhere else — not even for consumer-built requests.
+     *
+     * @throws InvalidUrlException
+     */
+    private static function assertAllowedUrl(string $url): void
+    {
+        // RFC 3986 hosts are case-insensitive — normalize both sides. The SDK refuses to send its
+        // auth credentials to any host other than the Quickpay API host.
+        $baseHost = strtolower(self::parseStringPart(self::HOST, \PHP_URL_HOST));
+        $urlHost = strtolower(self::parseStringPart($url, \PHP_URL_HOST));
+
+        if ($baseHost !== $urlHost) {
+            throw new InvalidUrlException(sprintf(
+                'Refusing to send a request to host "%s" — the Quickpay base host is "%s". '
+                . 'The SDK only sends auth credentials to its configured host.',
+                '' === $urlHost ? '(unparseable)' : $urlHost,
+                $baseHost,
+            ));
+        }
+
+        // Port hardening: reject any explicit port that doesn't match the scheme default.
+        $port = parse_url($url, \PHP_URL_PORT);
+        $scheme = strtolower(self::parseStringPart($url, \PHP_URL_SCHEME));
+        $defaultPort = 'https' === $scheme ? 443 : ('http' === $scheme ? 80 : null);
+        if (null !== $port && $port !== $defaultPort) {
+            throw new InvalidUrlException(sprintf(
+                'Refusing to send a request to non-default port %d on the Quickpay host.',
+                $port,
+            ));
+        }
     }
 
     private function userAgent(): string

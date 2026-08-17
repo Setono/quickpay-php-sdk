@@ -8,6 +8,7 @@ use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Setono\Quickpay\Client\Endpoint\PaymentsEndpoint;
+use Setono\Quickpay\Exception\InvalidUrlException;
 use Setono\Quickpay\Exception\QuickpayException;
 use Setono\Quickpay\Request\Payload;
 
@@ -31,6 +32,12 @@ interface ClientInterface
     public function getLastResponse(): ?ResponseInterface;
 
     /**
+     * Send an arbitrary PSR-7 request to the Quickpay API: the auth, `Accept-Version`, `Accept`
+     * and `User-Agent` headers are stamped on, non-2xx responses throw. The request URI MUST point
+     * at the Quickpay API host — like every other method here, it goes through the host-pinning
+     * guard, so credentials can never be sent anywhere else.
+     *
+     * @throws InvalidUrlException if the request URI is not on the Quickpay API host (or uses a non-default port)
      * @throws ClientExceptionInterface if an error happens while processing the request
      * @throws QuickpayException if the response is non-2xx (concrete subtype depends on the status code)
      */
@@ -61,8 +68,8 @@ interface ClientInterface
     public function post(string $uri, ?Payload $body = null): array;
 
     /**
-     * PUT to `$uri` and return the decoded JSON body. Used for updating a payment and for creating a
-     * payment link. The `$body` is normalized exactly as in {@see self::post()}.
+     * PUT to `$uri` and return the decoded JSON body. Used for creating (or updating) a payment
+     * link. The `$body` is normalized exactly as in {@see self::post()}.
      *
      * @return array<array-key, mixed>
      *

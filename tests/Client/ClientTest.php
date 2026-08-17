@@ -266,4 +266,44 @@ final class ClientTest extends QuickpayTestCase
 
         $this->client(new ScriptedHttpClient())->get('https://api.quickpay.net/ping', ['foo' => 'bar']);
     }
+
+    #[Test]
+    public function it_refuses_a_consumer_built_request_to_a_foreign_host(): void
+    {
+        // request() is the low-level entry point that stamps the API key on a caller-supplied
+        // PSR-7 request — it must run the same host-pinning guard as get()/post()/…, otherwise a
+        // consumer could (accidentally) ship the credentials to any host with no error at all.
+        $http = new ScriptedHttpClient();
+        $request = (new Psr17Factory())->createRequest('GET', 'https://evil.example/payments');
+
+        try {
+            $this->client($http)->request($request);
+            self::fail('Expected an InvalidUrlException.');
+        } catch (InvalidUrlException) {
+            // The request must be rejected BEFORE anything reaches the transport.
+            self::assertSame([], $http->sentRequests);
+        }
+    }
+
+    #[Test]
+    public function it_refuses_a_consumer_built_request_to_a_non_default_port(): void
+    {
+        $this->expectException(InvalidUrlException::class);
+
+        $request = (new Psr17Factory())->createRequest('GET', 'https://api.quickpay.net:8443/ping');
+
+        $this->client(new ScriptedHttpClient())->request($request);
+    }
+
+    #[Test]
+    public function it_sends_a_consumer_built_request_to_the_api_host(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/ping', self::fixture('ping.json'));
+        $request = (new Psr17Factory())->createRequest('GET', 'HTTPS://API.QUICKPAY.NET/ping');
+
+        $response = $this->client($http)->request($request);
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame('Basic ' . base64_encode(':' . self::API_KEY), $http->sentRequests[0]->getHeaderLine('Authorization'));
+    }
 }

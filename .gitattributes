@@ -4,8 +4,6 @@
 /.github                        export-ignore
 /.gitignore                     export-ignore
 /CLAUDE.md                      export-ignore
-/README.md                      export-ignore
-/UPGRADE.md                     export-ignore
 /composer-dependency-analyser.php export-ignore
 /ecs.php                        export-ignore
 /examples                       export-ignore

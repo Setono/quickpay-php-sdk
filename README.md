@@ -176,6 +176,23 @@ $client->payments()->capture($payment->id, new CaptureRequest(1000)); // waits (
 $client->payments()->refund($payment->id, new RefundRequest(250), synchronized: false); // fire-and-forget
 ```
 
+**Where does the callback for a capture/refund/cancel go?** Not to the `callbackUrl` you set on the
+payment link — Quickpay POSTs the callback of an *API-issued* operation to the **account-wide**
+callback URL (manager → Settings → Integration), which is empty by default. So a shop that only ever
+set the link's `callbackUrl` never hears about its captures, refunds and cancels. Pass `callbackUrl:`
+on the operation and Quickpay notifies that URL for it (sent as the `QuickPay-Callback-Url` header;
+verified live — the operation's own `callbackUrl` reflects it and the callback arrives there):
+
+```php
+$client->payments()->capture($payment->id, new CaptureRequest(1000), callbackUrl: 'https://shop.example/callback');
+$client->payments()->refund($payment->id, new RefundRequest(250), callbackUrl: 'https://shop.example/callback');
+$client->payments()->cancel($payment->id, callbackUrl: 'https://shop.example/callback');
+```
+
+Typically that's the same endpoint as the link's `callbackUrl` (plus whatever token your framework
+needs to route it back to the order). For unmodeled operations use the header directly:
+`$client->post('payments/1/renew', [], [Client::CALLBACK_URL_HEADER => $url])`.
+
 ### Reading what happened to a payment
 
 Everything that happened to a payment is recorded in its `operations` (authorize, capture, refund,
@@ -420,7 +437,9 @@ A few facts about Quickpay's callback service shape how your endpoint should beh
 [their callback docs](https://learn.quickpay.net/tech-talk/api/callback/), verified in the e2e harness):
 
 - **Every operation triggers a callback, and the body is the whole payment as it exists after the
-  change** (equivalent to `GET /payments/{id}`) — not a "capture succeeded" event. Work out what
+  change** (equivalent to `GET /payments/{id}`) — not a "capture succeeded" event. Callbacks for
+  operations *you* issue via the API go to the account-wide callback URL unless you pass
+  `callbackUrl:` on the operation (see [Capturing, refunding, cancelling](#capturing-refunding-cancelling)). Work out what
   happened from the operations: `$payment->latestOperation()` is usually the one that fired it, but
   compare against what you've already recorded rather than assuming.
 - **Deliveries are retried up to 24 times** with growing delays until you answer `2xx` (or `302`/`303`).

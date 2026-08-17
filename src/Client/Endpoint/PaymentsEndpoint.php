@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Setono\Quickpay\Client\Endpoint;
 
+use Setono\Quickpay\Client\Client;
 use Setono\Quickpay\Request\Payment\AuthorizePaymentRequest;
 use Setono\Quickpay\Request\Payment\CaptureRequest;
 use Setono\Quickpay\Request\Payment\CreateLinkRequest;
@@ -33,6 +34,12 @@ use Setono\Quickpay\Response\Payment\Payment;
  * `false` (a `qpStatusCode` of `"20000"` then means approved). Pass `$synchronized = true` to make
  * Quickpay wait and return the completed transaction instead; `null` (the default) falls back to
  * the client-wide `synchronized` flag set on the `Client` constructor.
+ *
+ * They also take a `$callbackUrl`: Quickpay POSTs the callback for an API-issued operation to the
+ * ACCOUNT-WIDE callback URL (manager → Settings → Integration) — not to the `callbackUrl` you set on
+ * the payment link, and the account-wide one is empty by default. Pass the URL you want notified
+ * (typically the same endpoint as the link's) and it is sent as the `QuickPay-Callback-Url` header
+ * for that one operation; the resulting operation's `callbackUrl` reflects it. Verified live.
  *
  * @extends CollectionEndpoint<Payment>
  */
@@ -88,39 +95,41 @@ final class PaymentsEndpoint extends CollectionEndpoint
      * required, so a request-less authorize can never succeed. Note this puts you in PCI scope
      * (card data); most integrations authorize through the payment window ({@see self::createLink()}).
      * Async by default — see the class docblock for what the response does (and doesn't) tell you
-     * and for `$synchronized`.
+     * and for `$synchronized` / `$callbackUrl`.
      */
-    public function authorize(int $id, AuthorizePaymentRequest $request, ?bool $synchronized = null): Payment
+    public function authorize(int $id, AuthorizePaymentRequest $request, ?bool $synchronized = null, ?string $callbackUrl = null): Payment
     {
-        return $this->postOperation($id, 'authorize', $request, $synchronized);
+        return $this->postOperation($id, 'authorize', $request, $synchronized, self::callbackUrlHeader($callbackUrl));
     }
 
     /**
      * POST `/payments/{id}/capture` — capture (part of) an authorized amount; several partial
      * captures are possible. Async by default — see the class docblock for what the response does
-     * (and doesn't) tell you and for `$synchronized`.
+     * (and doesn't) tell you and for `$synchronized` / `$callbackUrl`.
      */
-    public function capture(int $id, CaptureRequest $request, ?bool $synchronized = null): Payment
+    public function capture(int $id, CaptureRequest $request, ?bool $synchronized = null, ?string $callbackUrl = null): Payment
     {
-        return $this->postOperation($id, 'capture', $request, $synchronized);
+        return $this->postOperation($id, 'capture', $request, $synchronized, self::callbackUrlHeader($callbackUrl));
     }
 
     /**
      * POST `/payments/{id}/refund` — refund (part of) the captured balance. Async by default — see
-     * the class docblock for what the response does (and doesn't) tell you and for `$synchronized`.
+     * the class docblock for what the response does (and doesn't) tell you and for `$synchronized` /
+     * `$callbackUrl`.
      */
-    public function refund(int $id, RefundRequest $request, ?bool $synchronized = null): Payment
+    public function refund(int $id, RefundRequest $request, ?bool $synchronized = null, ?string $callbackUrl = null): Payment
     {
-        return $this->postOperation($id, 'refund', $request, $synchronized);
+        return $this->postOperation($id, 'refund', $request, $synchronized, self::callbackUrlHeader($callbackUrl));
     }
 
     /**
-     * POST `/payments/{id}/cancel` — void the authorization (no body). Async by default — see the
-     * class docblock for what the response does (and doesn't) tell you and for `$synchronized`.
+     * POST `/payments/{id}/cancel` — void the authorization (no parameters; an empty `{}` body is
+     * sent). Async by default — see the class docblock for what the response does (and doesn't)
+     * tell you and for `$synchronized` / `$callbackUrl`.
      */
-    public function cancel(int $id, ?bool $synchronized = null): Payment
+    public function cancel(int $id, ?bool $synchronized = null, ?string $callbackUrl = null): Payment
     {
-        return $this->postOperation($id, 'cancel', [], $synchronized);
+        return $this->postOperation($id, 'cancel', [], $synchronized, self::callbackUrlHeader($callbackUrl));
     }
 
     /**
@@ -139,6 +148,14 @@ final class PaymentsEndpoint extends CollectionEndpoint
     public function deleteLink(int $id): void
     {
         $this->deleteSubResource($id, 'link');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function callbackUrlHeader(?string $callbackUrl): array
+    {
+        return null === $callbackUrl ? [] : [Client::CALLBACK_URL_HEADER => $callbackUrl];
     }
 
     protected static function getPath(): string

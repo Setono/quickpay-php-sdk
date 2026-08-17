@@ -39,6 +39,17 @@ final class Client implements ClientInterface
      */
     public const API_VERSION = 'v10';
 
+    /**
+     * Request header accepted by the payment operations (`authorize`, `capture`, `refund`, `cancel`,
+     * and the unmodeled `renew`, `session`, `fraud-report`): the URL Quickpay POSTs THIS operation's
+     * callback to, overriding the account-wide callback URL (manager → Settings → Integration).
+     * Without it, API-issued operations notify the account-wide URL only — which is empty by
+     * default, so a shop that only ever set `callback_url` on the payment link never hears about
+     * its captures/refunds/cancels. The `PaymentsEndpoint` operation methods take a `$callbackUrl`
+     * argument that sets this header for you.
+     */
+    public const CALLBACK_URL_HEADER = 'QuickPay-Callback-Url';
+
     private const HOST = 'https://api.quickpay.net';
 
     private ?RequestInterface $lastRequest = null;
@@ -137,31 +148,31 @@ final class Client implements ClientInterface
         return $response;
     }
 
-    public function get(string $uri, array $query = []): array
+    public function get(string $uri, array $query = [], array $headers = []): array
     {
-        $request = $this->requestFactory->createRequest('GET', $this->resolveUrl($uri, $query));
+        $request = self::withHeaders($this->requestFactory->createRequest('GET', $this->resolveUrl($uri, $query)), $headers);
 
         return self::decodeJson($request, $this->request($request));
     }
 
-    public function post(string $uri, Payload|array $body = []): array
+    public function post(string $uri, Payload|array $body = [], array $headers = []): array
     {
-        return $this->send('POST', $uri, $body);
+        return $this->send('POST', $uri, $body, $headers);
     }
 
-    public function put(string $uri, Payload|array $body = []): array
+    public function put(string $uri, Payload|array $body = [], array $headers = []): array
     {
-        return $this->send('PUT', $uri, $body);
+        return $this->send('PUT', $uri, $body, $headers);
     }
 
-    public function patch(string $uri, Payload|array $body = []): array
+    public function patch(string $uri, Payload|array $body = [], array $headers = []): array
     {
-        return $this->send('PATCH', $uri, $body);
+        return $this->send('PATCH', $uri, $body, $headers);
     }
 
-    public function delete(string $uri): array
+    public function delete(string $uri, array $headers = []): array
     {
-        $request = $this->requestFactory->createRequest('DELETE', $this->resolveUrl($uri));
+        $request = self::withHeaders($this->requestFactory->createRequest('DELETE', $this->resolveUrl($uri)), $headers);
 
         return self::decodeJson($request, $this->request($request));
     }
@@ -248,12 +259,13 @@ final class Client implements ClientInterface
 
     /**
      * @param Payload|array<string, mixed> $body
+     * @param array<string, string> $headers
      *
      * @return array<array-key, mixed>
      */
-    private function send(string $method, string $uri, Payload|array $body): array
+    private function send(string $method, string $uri, Payload|array $body, array $headers = []): array
     {
-        $request = $this->requestFactory->createRequest($method, $this->resolveUrl($uri));
+        $request = self::withHeaders($this->requestFactory->createRequest($method, $this->resolveUrl($uri)), $headers);
 
         // Both shapes go through the SDK's normalizer: a Payload gets snake_cased + null-stripped by
         // the Payload transformer; a plain array is encoded as given (its keys untouched), but any
@@ -324,6 +336,18 @@ final class Client implements ClientInterface
         }
 
         return $url;
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    private static function withHeaders(RequestInterface $request, array $headers): RequestInterface
+    {
+        foreach ($headers as $name => $value) {
+            $request = $request->withHeader($name, $value);
+        }
+
+        return $request;
     }
 
     /**

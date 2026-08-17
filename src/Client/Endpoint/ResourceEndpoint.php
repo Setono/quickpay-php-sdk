@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Setono\Quickpay\Client\Endpoint;
 
+use Setono\Quickpay\Client\Client;
 use Setono\Quickpay\Request\Payload;
 use Setono\Quickpay\Response\Resource;
 
@@ -16,7 +17,7 @@ use Setono\Quickpay\Response\Resource;
  *  - {@see self::getOne()}         — GET `"{getPath()}"` or `"{getPath()}/{$id}"`.
  *  - {@see self::createOne()}      — POST a typed body.
  *  - {@see self::updateOne()}      — PATCH a typed body to `"{getPath()}/{$id}"`.
- *  - {@see self::postOperation()}  — POST (optionally a body) to `"{getPath()}/{$id}/{$action}"`.
+ *  - {@see self::postOperation()}  — POST (optionally a body, extra headers) to `"{getPath()}/{$id}/{$action}"`.
  *  - {@see self::putSubResource()} — PUT a typed body to `"{getPath()}/{$id}/{$sub}"`, returning
  *                                    the raw decoded array (for sub-resources mapped to a class
  *                                    other than the endpoint's item class, e.g. the payment link).
@@ -85,18 +86,27 @@ abstract class ResourceEndpoint extends Endpoint
      * (its final state) instead. When `$synchronized` is `null` the client-wide default
      * ({@see \Setono\Quickpay\Client\ClientInterface::isSynchronized()}) applies.
      *
+     * `$headers` are extra request headers for this call — e.g. `[Client::CALLBACK_URL_HEADER => $url]`
+     * so Quickpay POSTs this operation's callback there instead of to the account-wide callback URL.
+     *
      * @param Payload|array<string, mixed> $request
+     * @param array<string, string> $headers
      *
      * @return T
      */
-    protected function postOperation(int|string $id, string $action, Payload|array $request = [], ?bool $synchronized = null): Resource
-    {
+    protected function postOperation(
+        int|string $id,
+        string $action,
+        Payload|array $request = [],
+        ?bool $synchronized = null,
+        array $headers = [],
+    ): Resource {
         $path = sprintf('%s/%s/%s', static::getPath(), $id, $action);
         if ($synchronized ?? $this->client->isSynchronized()) {
             $path .= '?synchronized';
         }
 
-        return $this->mapItem(static::getItemClass(), $this->client->post($path, $request));
+        return $this->mapItem(static::getItemClass(), $this->client->post($path, $request, $headers));
     }
 
     /**

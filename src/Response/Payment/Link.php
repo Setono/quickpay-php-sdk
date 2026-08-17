@@ -17,6 +17,10 @@ use Setono\Quickpay\Response\Resource;
  * (`amount`, `continueUrl`, `callbackUrl`, …) is available on the payment itself, e.g. via
  * `getById()` → `$payment->link`; fields the SDK does not model are in the payment's `$raw['link']`
  * (nested instances are not `$raw`-stamped).
+ *
+ * `$autoCapture` tells whether Quickpay captures the payment itself right after authorization (the
+ * link was created with `autoCapture: true`), `$autoCaptureAt` the ISO-8601 time of a scheduled
+ * capture — so an integration knows whether it must capture or Quickpay already did/will.
  */
 final class Link extends Resource
 {
@@ -27,6 +31,8 @@ final class Link extends Resource
         public readonly ?string $continueUrl = null,
         public readonly ?string $cancelUrl = null,
         public readonly ?string $callbackUrl = null,
+        public readonly ?bool $autoCapture = null,
+        public readonly ?string $autoCaptureAt = null,
     ) {
     }
 }

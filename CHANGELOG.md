@@ -34,6 +34,11 @@ Developer-experience follow-ups from the v1.0.0 review ([#10](https://github.com
 - `Payment::variables()`, `Payment::$deadlineAt`, `Payment::$acquirer`; `CreatePaymentRequest::$shopsystem`
   (`Shopsystem` payload); the SDK version in the `User-Agent` (`Client::version()`)
   ([#19](https://github.com/Setono/quickpay-php-sdk/pull/19)).
+- Per-operation callback URL: `authorize()`/`capture()`/`refund()`/`cancel()` take a `callbackUrl`
+  argument, sent as the `QuickPay-Callback-Url` header (`Client::CALLBACK_URL_HEADER`) so Quickpay
+  notifies that URL for the operation instead of the account-wide callback URL; the low-level
+  `get()`/`post()`/`put()`/`patch()`/`delete()` accept extra request headers; `Link::$autoCapture` /
+  `$autoCaptureAt` are typed ([#26](https://github.com/Setono/quickpay-php-sdk/pull/26), closes #22).
 - Outcome predicates and status views: `Operation::hasOutcome()` / `isDeclined()`;
   `Payment::latestOperationOfType()`, `latestApprovedOperation()`, `hasApprovedOperation(?type)`,
   and `hasPendingOperation()` now takes an optional type ([#27](https://github.com/Setono/quickpay-php-sdk/pull/27), closes #25).

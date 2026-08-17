@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Setono\Quickpay\Client\Endpoint;
 
 use CuyZ\Valinor\Mapper\MappingError;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use Setono\Quickpay\Client\Client;
 use Setono\Quickpay\Enum\PaymentState;
 use Setono\Quickpay\Exception\MappingException;
 use Setono\Quickpay\QuickpayTestCase;
@@ -463,5 +465,86 @@ final class PaymentsEndpointTest extends QuickpayTestCase
             '{"order_id":"order-0001","currency":"DKK","shopsystem":{"name":"acme\/shop-plugin","version":"2.3.4"}}',
             (string) $http->sentRequests[0]->getBody(),
         );
+    }
+
+    /**
+     * @param callable(PaymentsEndpoint): Payment $operation
+     */
+    #[Test]
+    #[DataProvider('operationsWithCallbackUrl')]
+    public function it_sends_the_per_operation_callback_url_header(string $action, callable $operation): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234/' . $action, self::fixture('payment.json'));
+
+        $operation($this->client($http)->payments());
+
+        $sent = $http->sentRequests[0];
+        // Asserted with the literal header name on purpose: it is what Quickpay's swagger documents.
+        self::assertSame('https://shop.example/notify?token=abc', $sent->getHeaderLine('QuickPay-Callback-Url'));
+        // The SDK's own headers are still there.
+        self::assertSame('v10', $sent->getHeaderLine('Accept-Version'));
+    }
+
+    /**
+     * @return iterable<string, array{string, callable(PaymentsEndpoint): Payment}>
+     */
+    public static function operationsWithCallbackUrl(): iterable
+    {
+        $url = 'https://shop.example/notify?token=abc';
+
+        yield 'authorize' => ['authorize', static fn (PaymentsEndpoint $p): Payment => $p->authorize(1234, new AuthorizePaymentRequest(amount: 1000), callbackUrl: $url)];
+        yield 'capture' => ['capture', static fn (PaymentsEndpoint $p): Payment => $p->capture(1234, new CaptureRequest(1000), callbackUrl: $url)];
+        yield 'refund' => ['refund', static fn (PaymentsEndpoint $p): Payment => $p->refund(1234, new RefundRequest(250), callbackUrl: $url)];
+        yield 'cancel' => ['cancel', static fn (PaymentsEndpoint $p): Payment => $p->cancel(1234, callbackUrl: $url)];
+    }
+
+    #[Test]
+    public function it_sends_no_callback_url_header_by_default(): void
+    {
+        $http = (new ScriptedHttpClient())
+            ->on(self::BASE . '/payments/1234/capture', self::fixture('payment.json'))
+            ->on(self::BASE . '/payments/1234/cancel?synchronized', self::fixture('payment.json'))
+        ;
+        $payments = $this->client($http)->payments();
+
+        $payments->capture(1234, new CaptureRequest(1000));
+        $payments->cancel(1234, synchronized: true);
+
+        self::assertFalse($http->sentRequests[0]->hasHeader(Client::CALLBACK_URL_HEADER));
+        self::assertFalse($http->sentRequests[1]->hasHeader(Client::CALLBACK_URL_HEADER));
+    }
+
+    #[Test]
+    public function it_combines_the_callback_url_with_synchronized(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/payments/1234/refund?synchronized', self::fixture('payment.json'));
+
+        $this->client($http)->payments()->refund(1234, new RefundRequest(250), synchronized: true, callbackUrl: 'https://shop.example/notify');
+
+        $sent = $http->sentRequests[0];
+        self::assertSame(self::BASE . '/payments/1234/refund?synchronized', (string) $sent->getUri());
+        self::assertSame('https://shop.example/notify', $sent->getHeaderLine(Client::CALLBACK_URL_HEADER));
+    }
+
+    #[Test]
+    public function it_maps_the_link_auto_capture_fields(): void
+    {
+        $http = (new ScriptedHttpClient())->on(
+            self::BASE . '/payments/1',
+            '{"id":1,"merchant_id":1,"order_id":"o-1","currency":"DKK","state":"new","operations":[],'
+            . '"link":{"url":"https://payment.quickpay.net/payments/x","amount":1000,"auto_capture":true,"auto_capture_at":"2026-09-01T00:00:00Z"}}',
+        );
+
+        $link = $this->client($http)->payments()->getById(1)->link;
+
+        self::assertNotNull($link);
+        self::assertTrue($link->autoCapture);
+        self::assertSame('2026-09-01T00:00:00Z', $link->autoCaptureAt);
+        // And absent on the plain fixture link.
+        $http->on(self::BASE . '/payments/1234', self::fixture('payment.json'));
+        $plain = $this->client($http)->payments()->getById(1234)->link;
+        self::assertNotNull($plain);
+        self::assertNull($plain->autoCapture);
+        self::assertNull($plain->autoCaptureAt);
     }
 }

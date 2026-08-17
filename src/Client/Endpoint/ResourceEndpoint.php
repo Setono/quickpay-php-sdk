@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Setono\Quickpay\Client\Endpoint;
 
+use Setono\Quickpay\Client\Client;
 use Setono\Quickpay\Request\Payload;
 use Setono\Quickpay\Response\Resource;
 
@@ -85,18 +86,29 @@ abstract class ResourceEndpoint extends Endpoint
      * (its final state) instead. When `$synchronized` is `null` the client-wide default
      * ({@see \Setono\Quickpay\Client\ClientInterface::isSynchronized()}) applies.
      *
+     * When `$callbackUrl` is given it is sent as the `QuickPay-Callback-Url` header
+     * ({@see Client::CALLBACK_URL_HEADER}), so Quickpay POSTs this operation's callback there
+     * instead of to the account-wide callback URL.
+     *
      * @param Payload|array<string, mixed> $request
      *
      * @return T
      */
-    protected function postOperation(int|string $id, string $action, Payload|array $request = [], ?bool $synchronized = null): Resource
-    {
+    protected function postOperation(
+        int|string $id,
+        string $action,
+        Payload|array $request = [],
+        ?bool $synchronized = null,
+        ?string $callbackUrl = null,
+    ): Resource {
         $path = sprintf('%s/%s/%s', static::getPath(), $id, $action);
         if ($synchronized ?? $this->client->isSynchronized()) {
             $path .= '?synchronized';
         }
 
-        return $this->mapItem(static::getItemClass(), $this->client->post($path, $request));
+        $headers = null === $callbackUrl ? [] : [Client::CALLBACK_URL_HEADER => $callbackUrl];
+
+        return $this->mapItem(static::getItemClass(), $this->client->post($path, $request, $headers));
     }
 
     /**

@@ -529,6 +529,39 @@ final class ClientTest extends QuickpayTestCase
 
         $client->ping();
     }
+
+    #[Test]
+    public function it_sends_extra_headers_on_every_helper(): void
+    {
+        $http = (new ScriptedHttpClient())
+            ->on(self::BASE . '/a', '{}')->on(self::BASE . '/b', '{}')->on(self::BASE . '/c', '{}')->on(self::BASE . '/d', '{}')->on(self::BASE . '/e', '', 204)
+        ;
+        $client = $this->client($http);
+
+        $client->get('a', [], ['X-Test' => 'get']);
+        $client->post('b', [], ['X-Test' => 'post']);
+        $client->put('c', [], ['X-Test' => 'put']);
+        $client->patch('d', [], ['X-Test' => 'patch']);
+        $client->delete('e', ['X-Test' => 'delete']);
+
+        self::assertSame(['get', 'post', 'put', 'patch', 'delete'], array_map(
+            static fn (\Psr\Http\Message\RequestInterface $r): string => $r->getHeaderLine('X-Test'),
+            $http->sentRequests,
+        ));
+    }
+
+    #[Test]
+    public function the_sdk_headers_win_over_extra_headers(): void
+    {
+        $http = (new ScriptedHttpClient())->on(self::BASE . '/ping', self::fixture('ping.json'));
+
+        $this->client($http)->get('ping', [], ['Authorization' => 'Bearer nope', 'Accept-Version' => 'v9', Client::CALLBACK_URL_HEADER => 'https://shop.example/cb']);
+
+        $sent = $http->sentRequests[0];
+        self::assertSame('Basic ' . base64_encode(':' . self::API_KEY), $sent->getHeaderLine('Authorization'));
+        self::assertSame('v10', $sent->getHeaderLine('Accept-Version'));
+        self::assertSame('https://shop.example/cb', $sent->getHeaderLine(Client::CALLBACK_URL_HEADER));
+    }
 }
 
 /**

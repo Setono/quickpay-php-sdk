@@ -518,9 +518,14 @@ Everything the SDK throws implements `Setono\Quickpay\Exception\QuickpayExceptio
 nets it all: every non-2xx response is a typed exception, a 2xx body that can't be decoded/mapped is
 a `MalformedResponseException`, and a request that never got a response (DNS, connection refused,
 TLS, timeout) is a `TransportException` wrapping the PSR-18 client's exception (it is still a PSR-18
-`ClientExceptionInterface`; the original is `getPrevious()`):
+`ClientExceptionInterface`; the original is `getPrevious()`). An answer whose body breaks off after
+the headers arrived (a connection reset mid-read, with a streaming client such as Symfony's
+`Psr18Client`) is an `IncompleteResponseException`, with the stream's error as `getPrevious()`. It is
+deliberately not a PSR-18 exception: the request did reach Quickpay, so it is not a "nothing
+happened" network error:
 
 ```php
+use Setono\Quickpay\Exception\IncompleteResponseException;
 use Setono\Quickpay\Exception\QuickpayException;
 use Setono\Quickpay\Exception\TransportException;
 use Setono\Quickpay\Exception\ValidationException;
@@ -536,6 +541,10 @@ try {
     // for a create/capture, look the payment up first (see "Finding the payment for an order")
     $e->isNetworkError();  // vs. a request the HTTP client refused to send
     $e->getRequest();      // the PSR-7 request that failed
+} catch (IncompleteResponseException $e) {
+    // the answer arrived but broke off mid-body — the request DID reach Quickpay, so a 2xx
+    // status means the operation may well have gone through: look the payment up before retrying
+    $e->getResponse()->getStatusCode();  // the status line and headers did arrive (the body is empty)
 } catch (QuickpayException $e) {
     // any other SDK error (UnauthorizedException, NotFoundException, ConflictException,
     // TooManyRequestsException, InternalServerErrorException, MalformedResponseException, ...)

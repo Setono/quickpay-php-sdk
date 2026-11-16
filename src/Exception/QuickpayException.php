@@ -9,7 +9,8 @@ namespace Setono\Quickpay\Exception;
  *
  * Consumers can write `catch (QuickpayException $e) { ... }` to net all SDK-thrown exceptions
  * without catching `\Throwable` or maintaining an exception list — including transport failures
- * (see {@see TransportException}, which wraps the PSR-18 client's exception).
+ * (see {@see TransportException}, which wraps the PSR-18 client's exception, and
+ * {@see IncompleteResponseException}, for an answer whose body broke off mid-read).
  */
 interface QuickpayException extends \Throwable
 {

@@ -52,6 +52,19 @@ final class ExceptionHierarchyTest extends TestCase
         yield 'invalid argument is a quickpay exception' => [InvalidArgumentException::class, QuickpayException::class];
         yield 'invalid argument is an SPL invalid argument' => [InvalidArgumentException::class, \InvalidArgumentException::class];
         yield 'transport is still a PSR-18 client exception' => [TransportException::class, \Psr\Http\Client\ClientExceptionInterface::class];
+        yield 'incomplete response is a quickpay exception' => [IncompleteResponseException::class, QuickpayException::class];
+    }
+
+    #[Test]
+    public function an_incomplete_response_is_deliberately_not_a_psr18_exception(): void
+    {
+        // PSR-18 reserves its exceptions for "the request could not be sent / no response was
+        // received". Here the status line and headers DID arrive — an operation may have gone through —
+        // so handlers that read a PSR-18 network error as "nothing happened, safe to retry" must not
+        // catch it (NetworkExceptionInterface extends ClientExceptionInterface, so this covers both).
+        $class = new \ReflectionClass(IncompleteResponseException::class);
+
+        self::assertFalse($class->implementsInterface(\Psr\Http\Client\ClientExceptionInterface::class));
     }
 
     #[Test]

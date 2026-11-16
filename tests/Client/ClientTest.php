@@ -6,10 +6,12 @@ namespace Setono\Quickpay\Client;
 
 use CuyZ\Valinor\Cache\FileSystemCache;
 use Nyholm\Psr7\Factory\Psr17Factory;
+use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Setono\Quickpay\Exception\ConflictException;
 use Setono\Quickpay\Exception\ForbiddenException;
+use Setono\Quickpay\Exception\IncompleteResponseException;
 use Setono\Quickpay\Exception\InternalServerErrorException;
 use Setono\Quickpay\Exception\InvalidUrlException;
 use Setono\Quickpay\Exception\MalformedResponseException;
@@ -26,6 +28,7 @@ use Setono\Quickpay\QuickpayTestCase;
 use Setono\Quickpay\Request\CollectionRequestOptions;
 use Setono\Quickpay\Request\Payment\CreatePaymentRequest;
 use Setono\Quickpay\Request\Payment\Shipping;
+use Setono\Quickpay\TestDouble\NonSeekableStream;
 use Setono\Quickpay\TestDouble\ScriptedHttpClient;
 
 final class ClientTest extends QuickpayTestCase
@@ -528,6 +531,131 @@ final class ClientTest extends QuickpayTestCase
         $this->expectException(QuickpayException::class);
 
         $client->ping();
+    }
+
+    /**
+     * A streaming PSR-18 client returns once the headers arrive; a connection that breaks off after
+     * that surfaces only when the body is read — for a 2xx answer and for an error answer alike.
+     */
+    #[Test]
+    #[DataProvider('statusCodesOfABrokenOffAnswer')]
+    public function it_wraps_a_response_body_that_breaks_off_mid_read_in_an_incomplete_response_exception(int $status): void
+    {
+        $failure = new \RuntimeException('Unable to read stream contents: Connection reset by peer');
+        $http = (new ScriptedHttpClient())->on(
+            self::BASE . '/ping',
+            new Response($status, ['Content-Type' => 'application/json'], new NonSeekableStream('', $failure)),
+        );
+
+        try {
+            $this->client($http)->ping();
+            self::fail('Expected an IncompleteResponseException.');
+        } catch (IncompleteResponseException $e) {
+            // (It is a QuickpayException, deliberately NOT a PSR-18 exception — see ExceptionHierarchyTest.)
+            self::assertSame($failure, $e->getPrevious());
+            self::assertSame($status, $e->getResponse()->getStatusCode());
+        }
+    }
+
+    /**
+     * @return \Generator<string, array{int}>
+     */
+    public static function statusCodesOfABrokenOffAnswer(): \Generator
+    {
+        yield 'a 2xx answer' => [200];
+        yield 'an error answer' => [500];
+    }
+
+    #[Test]
+    public function it_reads_a_non_seekable_response_body(): void
+    {
+        $http = (new ScriptedHttpClient())->on(
+            self::BASE . '/payments/1',
+            new Response(200, ['Content-Type' => 'application/json'], new NonSeekableStream('{"id":1}')),
+        );
+
+        $client = $this->client($http);
+
+        self::assertSame(['id' => 1], $client->get('payments/1'));
+        self::assertSame('{"id":1}', (string) $client->getLastResponse()?->getBody(), 'the client read it, and it is still readable');
+    }
+
+    #[Test]
+    public function the_last_response_keeps_a_non_seekable_body_that_failed_to_decode(): void
+    {
+        $http = (new ScriptedHttpClient())->on(
+            self::BASE . '/payments/1',
+            new Response(200, ['Content-Type' => 'application/json'], new NonSeekableStream('<html>Bad gateway</html>')),
+        );
+        $client = $this->client($http);
+
+        try {
+            $client->get('payments/1');
+            self::fail('Expected a MalformedResponseException.');
+        } catch (MalformedResponseException) {
+            self::assertSame('<html>Bad gateway</html>', (string) $client->getLastResponse()?->getBody());
+        }
+    }
+
+    #[Test]
+    public function the_response_body_stays_readable_after_the_client_has_read_a_non_seekable_stream(): void
+    {
+        $http = (new ScriptedHttpClient())->on(
+            self::BASE . '/payments/1',
+            new Response(200, ['Content-Type' => 'application/json'], new NonSeekableStream('{"id":1}')),
+        );
+        $client = $this->client($http);
+
+        $response = $client->request((new Psr17Factory())->createRequest('GET', self::BASE . '/payments/1'));
+
+        self::assertSame('{"id":1}', (string) $response->getBody());
+        self::assertSame('{"id":1}', (string) $response->getBody(), 'a second read yields the body again');
+        self::assertSame('{"id":1}', (string) $client->getLastResponse()?->getBody());
+    }
+
+    #[Test]
+    public function an_answer_that_broke_off_is_described_with_a_sanitized_request_context(): void
+    {
+        $http = (new ScriptedHttpClient())->on(
+            self::BASE . '/payments?order_id=secret-ref',
+            new Response(200, [], new NonSeekableStream('', new \RuntimeException('Connection reset by peer'))),
+        );
+
+        try {
+            $this->client($http)->get('payments', ['order_id' => 'secret-ref']);
+            self::fail('Expected an IncompleteResponseException.');
+        } catch (IncompleteResponseException $e) {
+            self::assertSame(
+                'The response body could not be read in full [GET https://api.quickpay.net/payments] (status code: 200): Connection reset by peer',
+                $e->getMessage(),
+            );
+            self::assertStringNotContainsString(self::API_KEY, $e->getMessage());
+            self::assertSame(0, $e->getCode());
+        }
+    }
+
+    #[Test]
+    #[DataProvider('statusCodesOfABrokenOffAnswer')]
+    public function it_records_an_answer_that_broke_off_as_the_last_response(int $status): void
+    {
+        $http = (new ScriptedHttpClient())->on(
+            self::BASE . '/ping',
+            new Response($status, ['Content-Type' => 'application/json'], new NonSeekableStream('', new \RuntimeException('Connection reset by peer'))),
+        );
+        $client = $this->client($http);
+
+        try {
+            $client->ping();
+            self::fail('Expected an IncompleteResponseException.');
+        } catch (IncompleteResponseException $e) {
+            self::assertSame($http->sentRequests[0], $client->getLastRequest());
+            self::assertSame($e->getRequest(), $client->getLastRequest());
+            self::assertSame($e->getResponse(), $client->getLastResponse());
+
+            // The status line and headers arrived, the body did not: reading it must not throw again.
+            self::assertSame('', (string) $e->getResponse()->getBody());
+            self::assertSame('application/json', $e->getResponse()->getHeaderLine('Content-Type'));
+        }
     }
 
     #[Test]

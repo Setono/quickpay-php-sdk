@@ -484,7 +484,8 @@ final class Client implements ClientInterface
             return;
         }
 
-        // Pre-read the body ONCE so the exception's getters work even on non-seekable streams.
+        // request() has already buffered the body, so this read is safe; passing it in spares the
+        // exception a lazy re-read of the stream.
         $body = (string) $response->getBody();
 
         throw match ($statusCode) {

@@ -574,7 +574,27 @@ final class ClientTest extends QuickpayTestCase
             new Response(200, ['Content-Type' => 'application/json'], new NonSeekableStream('{"id":1}')),
         );
 
-        self::assertSame(['id' => 1], $this->client($http)->get('payments/1'));
+        $client = $this->client($http);
+
+        self::assertSame(['id' => 1], $client->get('payments/1'));
+        self::assertSame('{"id":1}', (string) $client->getLastResponse()?->getBody(), 'the client read it, and it is still readable');
+    }
+
+    #[Test]
+    public function the_last_response_keeps_a_non_seekable_body_that_failed_to_decode(): void
+    {
+        $http = (new ScriptedHttpClient())->on(
+            self::BASE . '/payments/1',
+            new Response(200, ['Content-Type' => 'application/json'], new NonSeekableStream('<html>Bad gateway</html>')),
+        );
+        $client = $this->client($http);
+
+        try {
+            $client->get('payments/1');
+            self::fail('Expected a MalformedResponseException.');
+        } catch (MalformedResponseException) {
+            self::assertSame('<html>Bad gateway</html>', (string) $client->getLastResponse()?->getBody());
+        }
     }
 
     #[Test]
@@ -615,11 +635,12 @@ final class ClientTest extends QuickpayTestCase
     }
 
     #[Test]
-    public function it_records_an_answer_that_broke_off_as_the_last_response(): void
+    #[DataProvider('statusCodesOfABrokenOffAnswer')]
+    public function it_records_an_answer_that_broke_off_as_the_last_response(int $status): void
     {
         $http = (new ScriptedHttpClient())->on(
             self::BASE . '/ping',
-            new Response(200, ['Content-Type' => 'application/json'], new NonSeekableStream('', new \RuntimeException('Connection reset by peer'))),
+            new Response($status, ['Content-Type' => 'application/json'], new NonSeekableStream('', new \RuntimeException('Connection reset by peer'))),
         );
         $client = $this->client($http);
 

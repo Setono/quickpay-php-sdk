@@ -15,7 +15,7 @@ use Psr\Http\Message\StreamInterface;
  */
 final class NonSeekableStream implements StreamInterface
 {
-    private bool $consumed = false;
+    private int $position = 0;
 
     public function __construct(
         private readonly string $contents,
@@ -47,12 +47,12 @@ final class NonSeekableStream implements StreamInterface
 
     public function tell(): int
     {
-        return $this->consumed ? strlen($this->contents) : 0;
+        return $this->position;
     }
 
     public function eof(): bool
     {
-        return $this->consumed;
+        return $this->position >= strlen($this->contents);
     }
 
     public function isSeekable(): bool
@@ -87,22 +87,19 @@ final class NonSeekableStream implements StreamInterface
 
     public function read(int $length): string
     {
-        return $this->getContents();
-    }
-
-    public function getContents(): string
-    {
         if (null !== $this->failure) {
             throw $this->failure;
         }
 
-        if ($this->consumed) {
-            return '';
-        }
+        $chunk = substr($this->contents, $this->position, $length);
+        $this->position += strlen($chunk);
 
-        $this->consumed = true;
+        return $chunk;
+    }
 
-        return $this->contents;
+    public function getContents(): string
+    {
+        return $this->read(max(0, strlen($this->contents) - $this->position));
     }
 
     public function getMetadata(?string $key = null): mixed

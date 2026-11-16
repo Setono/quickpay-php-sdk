@@ -43,7 +43,7 @@ CI (`.github/workflows/build.yaml`, branch `1.x`): coding-standards, dependency-
 
 ## Testing
 
-`tests/` autoloads under the same `Setono\Quickpay\` namespace (`autoload-dev`). The HTTP layer is faked with `tests/TestDouble/ScriptedHttpClient.php` (a URI-keyed fake — no mocking framework); build clients via `QuickpayTestCase::client()`, and load captured payloads from `tests/Fixtures/`. New code needs tests (the mutation gate is `minCoveredMsi 70`). `tests/Client/LiveClientTest.php` hits the real API and is skipped unless `QUICKPAY_LIVE=1` and `QUICKPAY_API_KEY` are set.
+`tests/` autoloads under the same `Setono\Quickpay\` namespace (`autoload-dev`). The HTTP layer is faked with `tests/TestDouble/ScriptedHttpClient.php` (a URI-keyed fake — no mocking framework; script a whole `ResponseInterface` with a `tests/TestDouble/NonSeekableStream.php` body to simulate a streaming client's read-once body, or one that breaks off mid-read); build clients via `QuickpayTestCase::client()`, and load captured payloads from `tests/Fixtures/`. New code needs tests (the mutation gate is `minCoveredMsi 70`). `tests/Client/LiveClientTest.php` hits the real API and is skipped unless `QUICKPAY_LIVE=1` and `QUICKPAY_API_KEY` are set.
 
 ## Agent skills
 

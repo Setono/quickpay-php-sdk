@@ -44,3 +44,19 @@ CI (`.github/workflows/build.yaml`, branch `1.x`): coding-standards, dependency-
 ## Testing
 
 `tests/` autoloads under the same `Setono\Quickpay\` namespace (`autoload-dev`). The HTTP layer is faked with `tests/TestDouble/ScriptedHttpClient.php` (a URI-keyed fake — no mocking framework); build clients via `QuickpayTestCase::client()`, and load captured payloads from `tests/Fixtures/`. New code needs tests (the mutation gate is `minCoveredMsi 70`). `tests/Client/LiveClientTest.php` hits the real API and is skipped unless `QUICKPAY_LIVE=1` and `QUICKPAY_API_KEY` are set.
+
+## Agent skills
+
+- When grilling (`/mattpocock-skills:grilling`, `/mattpocock-skills:grill-me`, `/mattpocock-skills:grill-with-docs`, and grilling inside other skills), ask via the `AskUserQuestion` tool instead of as plain chat text. The skills ask in chat on purpose and leave this to the project's CLAUDE.md ([mattpocock/skills: native question tool](https://github.com/mattpocock/skills/blob/main/.out-of-scope/native-question-tool.md)).
+
+### Issue tracker
+
+Issues and specs live in GitHub Issues on `Setono/quickpay-php-sdk`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default triage labels are used as-is (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root, created only when a term or decision gets settled. See `docs/agents/domain.md`.

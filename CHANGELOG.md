@@ -9,6 +9,12 @@ narrative.
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-11-16
+
+A fix for an answer whose body breaks off mid-read, which escaped `catch (QuickpayException $e)` as a
+plain `\RuntimeException` ([#29](https://github.com/Setono/quickpay-php-sdk/issues/29)). Additive;
+see "BC notes".
+
 ### Added
 
 - `IncompleteResponseException` (a `QuickpayException`, extends `\RuntimeException`): Quickpay's
@@ -231,7 +237,8 @@ First alpha: payments (create/get/list/update/authorize/capture/refund/cancel), 
 link flow, signed callback verification, `/ping`, typed DTOs with a `$raw` fallback, a typed
 exception hierarchy under `QuickpayException`, and host pinning.
 
-[Unreleased]: https://github.com/Setono/quickpay-php-sdk/compare/v1.2.0...1.x
+[Unreleased]: https://github.com/Setono/quickpay-php-sdk/compare/v1.3.0...1.x
+[1.3.0]: https://github.com/Setono/quickpay-php-sdk/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Setono/quickpay-php-sdk/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Setono/quickpay-php-sdk/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Setono/quickpay-php-sdk/compare/v1.0.0-beta.2...v1.0.0

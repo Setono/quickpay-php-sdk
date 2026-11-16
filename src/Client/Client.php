@@ -20,6 +20,7 @@ use Psr\Http\Message\StreamFactoryInterface;
 use Setono\Quickpay\Client\Endpoint\PaymentsEndpoint;
 use Setono\Quickpay\Exception\ConflictException;
 use Setono\Quickpay\Exception\ForbiddenException;
+use Setono\Quickpay\Exception\IncompleteResponseException;
 use Setono\Quickpay\Exception\InternalServerErrorException;
 use Setono\Quickpay\Exception\InvalidUrlException;
 use Setono\Quickpay\Exception\MalformedResponseException;
@@ -139,6 +140,18 @@ final class Client implements ClientInterface
 
             throw new TransportException($request, $e);
         }
+
+        try {
+            $body = (string) $response->getBody();
+        } catch (\RuntimeException $e) {
+            $response = $response->withBody($this->streamFactory->createStream(''));
+            $this->lastRequest = $request;
+            $this->lastResponse = $response;
+
+            throw new IncompleteResponseException($request, $response, $e);
+        }
+
+        $response = $response->withBody($this->streamFactory->createStream($body));
 
         $this->lastRequest = $request;
         $this->lastResponse = $response;

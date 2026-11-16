@@ -7,6 +7,7 @@ namespace Setono\Quickpay\Client;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Setono\Quickpay\Client\Endpoint\PaymentsEndpoint;
+use Setono\Quickpay\Exception\IncompleteResponseException;
 use Setono\Quickpay\Exception\InvalidUrlException;
 use Setono\Quickpay\Exception\QuickpayException;
 use Setono\Quickpay\Exception\TransportException;
@@ -35,7 +36,9 @@ interface ClientInterface
 
     /**
      * The last response received from the API, or `null` if no response has been received yet (or
-     * the last request failed at the transport level).
+     * the last request failed at the transport level). When the last answer's body broke off (an
+     * {@see IncompleteResponseException}), this is that answer's status line and headers, with an
+     * empty body.
      */
     public function getLastResponse(): ?ResponseInterface;
 
@@ -45,8 +48,12 @@ interface ClientInterface
      * at the Quickpay API host — like every other method here, it goes through the host-pinning
      * guard, so credentials can never be sent anywhere else.
      *
+     * The response body is read in full before this returns, so the returned response's body can
+     * be read (and re-read) even when the HTTP client hands over a non-seekable stream.
+     *
      * @throws InvalidUrlException if the request URI is not on the Quickpay API host (or uses a non-default port)
      * @throws TransportException if the request could not be sent / no response was received (wraps the PSR-18 exception)
+     * @throws IncompleteResponseException if the answer arrived but its body broke off before it was read in full
      * @throws QuickpayException if the response is non-2xx (concrete subtype depends on the status code)
      */
     public function request(RequestInterface $request): ResponseInterface;
@@ -61,6 +68,7 @@ interface ClientInterface
      * @return array<array-key, mixed>
      *
      * @throws TransportException if the request could not be sent / no response was received (wraps the PSR-18 exception)
+     * @throws IncompleteResponseException if the answer arrived but its body broke off before it was read in full
      * @throws QuickpayException if the response is non-2xx, or the body is not valid JSON
      */
     public function get(string $uri, array $query = [], array $headers = []): array;
@@ -82,6 +90,7 @@ interface ClientInterface
      * @return array<array-key, mixed>
      *
      * @throws TransportException if the request could not be sent / no response was received (wraps the PSR-18 exception)
+     * @throws IncompleteResponseException if the answer arrived but its body broke off before it was read in full
      * @throws QuickpayException if the response is non-2xx, or the body is not valid JSON
      */
     public function post(string $uri, Payload|array $body = [], array $headers = []): array;
@@ -96,6 +105,7 @@ interface ClientInterface
      * @return array<array-key, mixed>
      *
      * @throws TransportException if the request could not be sent / no response was received (wraps the PSR-18 exception)
+     * @throws IncompleteResponseException if the answer arrived but its body broke off before it was read in full
      * @throws QuickpayException if the response is non-2xx, or the body is not valid JSON
      */
     public function put(string $uri, Payload|array $body = [], array $headers = []): array;
@@ -110,6 +120,7 @@ interface ClientInterface
      * @return array<array-key, mixed>
      *
      * @throws TransportException if the request could not be sent / no response was received (wraps the PSR-18 exception)
+     * @throws IncompleteResponseException if the answer arrived but its body broke off before it was read in full
      * @throws QuickpayException if the response is non-2xx, or the body is not valid JSON
      */
     public function patch(string $uri, Payload|array $body = [], array $headers = []): array;
@@ -123,6 +134,7 @@ interface ClientInterface
      * @return array<array-key, mixed>
      *
      * @throws TransportException if the request could not be sent / no response was received (wraps the PSR-18 exception)
+     * @throws IncompleteResponseException if the answer arrived but its body broke off before it was read in full
      * @throws QuickpayException if the response is non-2xx, or a non-empty body is not valid JSON
      */
     public function delete(string $uri, array $headers = []): array;
@@ -131,6 +143,7 @@ interface ClientInterface
      * Health check — `GET /ping`. Returns `true` on a 2xx response (a non-2xx response throws).
      *
      * @throws TransportException if the request could not be sent / no response was received (wraps the PSR-18 exception)
+     * @throws IncompleteResponseException if the answer arrived but its body broke off before it was read in full
      * @throws QuickpayException if the response is non-2xx
      */
     public function ping(): bool;

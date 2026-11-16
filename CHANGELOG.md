@@ -9,6 +9,19 @@ narrative.
 
 ## [Unreleased]
 
+### Fixed
+
+- An answer whose body breaks off mid-read now throws an `IncompleteResponseException` (a
+  `QuickpayException`) instead of letting the PSR-7 stream's plain `\RuntimeException` escape
+  `catch (QuickpayException $e)`. It is deliberately not a PSR-18 exception: the request did reach
+  Quickpay, so it must not look like a "no response, safe to retry" network error. A streaming PSR-18
+  client such as Symfony's `Psr18Client` returns once the headers arrive, so a connection that broke
+  off after that only surfaced when the SDK read the body. `Client::request()` now reads the body
+  once, right after sending, and returns the response with a buffered copy — so the body is
+  re-readable (also via `getLastResponse()`) even from a non-seekable stream. The exception carries
+  the request and the status line and headers that did arrive
+  ([#29](https://github.com/Setono/quickpay-php-sdk/issues/29)).
+
 ## [1.2.0] — 2026-08-17
 
 Two follow-ups from reviewing `setono/payum-quickpay` against 1.1 — Quickpay knowledge every

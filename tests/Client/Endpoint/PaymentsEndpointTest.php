@@ -70,6 +70,18 @@ final class PaymentsEndpointTest extends QuickpayTestCase
         self::assertSame(1000, $payment->operations[0]->amount);
         self::assertSame('20000', $payment->operations[0]->qpStatusCode);
 
+        // How Quickpay's callback about each operation was answered: the shop answered 200 ...
+        self::assertTrue($payment->operations[0]->callbackSuccess);
+        self::assertSame('200', $payment->operations[0]->callbackResponseCode);
+        self::assertEquals(new \DateTimeImmutable('2026-06-22T10:00:02Z'), $payment->operations[0]->callbackAt);
+        self::assertSame(804, $payment->operations[0]->callbackDuration);
+
+        // ... and never answered the second one
+        self::assertFalse($payment->operations[1]->callbackSuccess);
+        self::assertNull($payment->operations[1]->callbackResponseCode);
+        self::assertEquals(new \DateTimeImmutable('2026-06-22T10:05:01Z'), $payment->operations[1]->callbackAt);
+        self::assertNull($payment->operations[1]->callbackDuration);
+
         self::assertNotNull($payment->metadata);
         self::assertSame('visa', $payment->metadata->brand);
         self::assertSame('0000', $payment->metadata->last4);

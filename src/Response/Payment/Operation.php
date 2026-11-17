@@ -18,6 +18,14 @@ use Setono\Quickpay\Enum\OperationType;
  * status codes say nothing yet. Once it has completed, {@see self::isApproved()} tells you whether
  * it succeeded; any other completed outcome (rejected by the acquirer, 3-D Secure required, gateway
  * error, …) is described by `qpStatusCode` / `qpStatusMsg` — see the Quickpay status-code appendix.
+ *
+ * Reading the callback: Quickpay records how its callback about the operation (sent to
+ * `callbackUrl`) was answered. The callback fields are `null` until it was sent (e.g. while the
+ * operation is pending). Once sent, `callbackSuccess` is Quickpay's judgment of the answer and
+ * `callbackAt` when it was sent. `callbackResponseCode` is the HTTP status code the receiver
+ * answered with, as a string (e.g. `"204"`), and `null` when no answer came (`callbackSuccess` is
+ * then `false`). `callbackDuration` is how long the callback took, in milliseconds: a timed-out one
+ * reports about 30000, and it is `null` when the receiver couldn't be reached at all.
  */
 final class Operation
 {
@@ -37,6 +45,10 @@ final class Operation
         public readonly ?string $aqStatusMsg = null,
         public readonly ?string $callbackUrl = null,
         public readonly ?\DateTimeImmutable $createdAt = null,
+        public readonly ?bool $callbackSuccess = null,
+        public readonly ?string $callbackResponseCode = null,
+        public readonly ?\DateTimeImmutable $callbackAt = null,
+        public readonly ?int $callbackDuration = null,
     ) {
     }
 

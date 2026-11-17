@@ -228,6 +228,13 @@ $payment->hasPendingOperation(OperationType::Refund);      // is a refund in fli
 $op->hasOutcome();   // no longer pending — the status codes mean something now
 $op->isApproved();   // qp_status_code 20000
 $op->isDeclined();   // completed but NOT approved: rejected (4xxxx), error (5xxxx), auth required (3xxxx)
+
+// How Quickpay's callback about the operation was answered (all null until it was sent):
+$op->callbackUrl;           // where it went
+$op->callbackSuccess;       // ?bool — Quickpay's judgment of the answer
+$op->callbackResponseCode;  // ?string — the status code your endpoint answered with, e.g. "204"; null when no answer came
+$op->callbackAt;            // ?DateTimeImmutable — when it was sent
+$op->callbackDuration;      // ?int — how long it took, in milliseconds
 ```
 
 Only **approved** operations count towards the amounts — pending or rejected ones don't. When an

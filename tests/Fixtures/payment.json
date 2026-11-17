@@ -55,6 +55,8 @@
             "callback_url": "https://shop.example/callback",
             "callback_success": true,
             "callback_response_code": "200",
+            "callback_at": "2026-06-22T10:00:02Z",
+            "callback_duration": 804,
             "acquirer": "clearhaus",
             "created_at": "2026-06-22T10:00:00Z"
         },
@@ -69,6 +71,10 @@
             "aq_status_msg": "Approved",
             "data": {},
             "callback_url": "https://shop.example/callback",
+            "callback_success": false,
+            "callback_response_code": null,
+            "callback_at": "2026-06-22T10:05:01Z",
+            "callback_duration": null,
             "acquirer": "clearhaus",
             "created_at": "2026-06-22T10:05:00Z"
         }

@@ -9,6 +9,13 @@ narrative.
 
 ## [Unreleased]
 
+### Added
+
+- `Operation::$callbackSuccess`, `$callbackResponseCode`, `$callbackAt` and `$callbackDuration`: how
+  Quickpay's callback about the operation was answered, all `null` until it was sent. Before, only
+  `$callbackUrl` was typed and the rest had to be read from the payment's `$raw['operations']`.
+  The new constructor parameters come last, so positional calls are unaffected.
+
 ## [1.3.0] — 2026-11-16
 
 A fix for an answer whose body breaks off mid-read, which escaped `catch (QuickpayException $e)` as a

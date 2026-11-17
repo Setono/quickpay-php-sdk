@@ -9,6 +9,10 @@ narrative.
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-11-17
+
+How Quickpay's callback about an operation was answered, typed on `Operation`. Additive.
+
 ### Added
 
 - `Operation::$callbackSuccess`, `$callbackResponseCode`, `$callbackAt` and `$callbackDuration`: how
@@ -245,7 +249,8 @@ First alpha: payments (create/get/list/update/authorize/capture/refund/cancel), 
 link flow, signed callback verification, `/ping`, typed DTOs with a `$raw` fallback, a typed
 exception hierarchy under `QuickpayException`, and host pinning.
 
-[Unreleased]: https://github.com/Setono/quickpay-php-sdk/compare/v1.3.0...1.x
+[Unreleased]: https://github.com/Setono/quickpay-php-sdk/compare/v1.4.0...1.x
+[1.4.0]: https://github.com/Setono/quickpay-php-sdk/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/Setono/quickpay-php-sdk/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Setono/quickpay-php-sdk/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Setono/quickpay-php-sdk/compare/v1.0.0...v1.1.0
